@@ -3,6 +3,8 @@ annotations/
 results/
 external/
 .DS_Store
+__pycache__
+settings.json
 
 MatlabAPI/analyze*/
 MatlabAPI/visualize*/
