@@ -5,6 +5,8 @@ external/
 .DS_Store
 __pycache__
 settings.json
+.ipynb_checkpoints
+*.cpython*.so
 
 MatlabAPI/analyze*/
 MatlabAPI/visualize*/

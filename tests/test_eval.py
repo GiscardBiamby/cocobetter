@@ -9,7 +9,7 @@ class TestCOCOEval(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_coco_json_loading(self):
+    def test_eval(self):
         ann_path = (
             Path("") / "data/annotations/xview_coco_v2_tiny_val_chipped.json"
         ).resolve()
