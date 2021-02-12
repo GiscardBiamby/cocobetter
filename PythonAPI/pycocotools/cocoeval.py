@@ -3,7 +3,8 @@ __author__ = "tsungyi"
 import copy
 import datetime
 import time
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+from typing import Dict, NamedTuple, Tuple
 
 import numpy as np
 
@@ -89,6 +90,8 @@ class COCOeval:
         if not cocoGt is None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
+        self.stats_dict: Dict[StatKey, float] = {}
+        self.stats_dict_per_class: Dict[StatKeyPerClass, float] = {}
 
     def _prepare(self):
         """
@@ -468,8 +471,14 @@ class COCOeval:
         """
 
         def _summarize(ap=1, iouThr=None, areaRng="all", maxDets=100):
+            """
+            Returns `stats`, and `stats_dict`. `stats` is what the default cocoeval code returned (a
+            numpy array). `stats_dict` is a dictionary with the same values, but the dictionary keys
+            are a Tuple of (IoU, area, maxDets)
+            """
             p = self.params
-            iStr = " {:<18} {} @[ iou={:<9} | area={:>6s} | maxdets={:>3d} ] = {:0.3f}"
+            iStr = " {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}"
+            # iStr = ' {:<18} {} @[ iou={:<9} | area={:>6s} | maxdets={:>3d} ]'
             titleStr = "Average Precision" if ap == 1 else "Average Recall"
             typeStr = "(AP)" if ap == 1 else "(AR)"
             iouStr = (
@@ -477,7 +486,9 @@ class COCOeval:
                 if iouThr is None
                 else "{:0.2f}".format(iouThr)
             )
-
+            stats_dict_key = StatKey(
+                "AR" if ap == 0 else "AP", iouStr, areaRng, maxDets
+            )
             aind = [i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng]
             mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets]
             if ap == 1:
@@ -499,67 +510,48 @@ class COCOeval:
                 mean_s = -1
             else:
                 mean_s = np.mean(s[s > -1])
-                # calculate AP(average precision) for each category
-                num_classes = len(self.params.catIds)
+                # Calculate AP and AR for each category:
                 cat_dict = {
                     c["id"]: c["name"] for c in self.cocoGt.dataset["categories"]
                 }
-                if not hasattr(self, "per_class_maps"):
-                    self.per_class_maps = {}
-                if not hasattr(self, "per_class_ars"):
-                    self.per_class_ars = {}
-                avg_ap = 0.0
-                if ap == 1:
-                    for i, cat_id in enumerate(self.params.catIds):
-                        result_key = f"({cat_id}, {cat_dict[cat_id]})_" + iStr.format(
-                            titleStr, typeStr, iouStr, areaRng, maxDets, mean_s
-                        )
-                        class_map = np.mean(s[:, :, i, :])
-                        avg_ap += class_map
-                        self.per_class_maps[result_key] = class_map
-                else:
-                    for i, cat_id in enumerate(self.params.catIds):
-                        result_key = f"({cat_id}, {cat_dict[cat_id]})_" + iStr.format(
-                            titleStr, typeStr, iouStr, areaRng, maxDets, mean_s
-                        )
+                avg = 0.0
+                for i, cat_id in enumerate(self.params.catIds):
+                    stats_dict_per_class_key = StatKeyPerClass._make(
+                        stats_dict_key + (cat_id, f"{scrub_cat_name(cat_dict[cat_id])}")
+                    )
+                    if ap == 1:
+                        class_ap = np.mean(s[:, :, i, :])
+                        avg += class_ap
+                        self.stats_dict_per_class[stats_dict_per_class_key] = class_ap
+                    else:
                         class_ar = np.mean(s[:, i, :])
-                        self.per_class_ars[result_key] = class_ar
+                        avg += class_ar
+                        self.stats_dict_per_class[stats_dict_per_class_key] = class_ar
+                # print("avg: ", avg_ap / len(self.params.catIds))
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
+            self.stats_dict[stats_dict_key] = mean_s
             return mean_s
 
         def _summarizeDets():
             index = 0
-            aps = [0, 1]
-
+            aps = [0, 1]  # 0 = recall, 1 = precision
+            max_dets_list = [self.params.maxDets[-1]]
             num_stats = (
-                len(aps) * len(self.params.summaryIous) * len(self.params.areaRngLbl)
+                len(aps)
+                * len(self.params.summaryIous)
+                * len(self.params.areaRngLbl)
+                * len(max_dets_list)
             )
-
             stats = np.zeros((num_stats,))
-
             for ap in aps:
                 for iou in self.params.summaryIous:
                     for area in self.params.areaRngLbl:
-                        stats[index] = _summarize(
-                            ap,
-                            iouThr=iou,
-                            areaRng=area,
-                            maxDets=self.params.maxDets[-1],
-                        )
-                        index += 1
+                        for max_dets in max_dets_list:
+                            stats[index] = _summarize(
+                                ap, iouThr=iou, areaRng=area, maxDets=max_dets
+                            )
+                            index += 1
 
-            # stats[0] = _summarize(1)
-            # stats[1] = _summarize(1, iouThr=.25, maxDets=self.params.maxDets[2])
-            # stats[1] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
-            # stats[3] = _summarize(1, iouThr=.25, areaRng='small', maxDets=self.params.maxDets[2])
-            # stats[4] = _summarize(1, iouThr=.25, areaRng='medium', maxDets=self.params.maxDets[2])
-            # stats[5] = _summarize(1, iouThr=.25, areaRng='large', maxDets=self.params.maxDets[2])
-            # stats[6] = _summarize(0, iouThr=.25, maxDets=self.params.maxDets[0])
-            # stats[7] = _summarize(0, iouThr=.25, maxDets=self.params.maxDets[1])
-            # stats[8] = _summarize(0, iouThr=.25, maxDets=self.params.maxDets[2])
-            # stats[9] = _summarize(0, iouThr=.25, areaRng='small', maxDets=self.params.maxDets[2])
-            # stats[10] = _summarize(0, iouThr=.25, areaRng='medium', maxDets=self.params.maxDets[2])
-            # stats[11] = _summarize(0, iouThr=.25, areaRng='large', maxDets=self.params.maxDets[2])
             return stats
 
         def _summarizeKps():
@@ -580,13 +572,47 @@ class COCOeval:
             raise Exception("Please run accumulate() first")
         iouType = self.params.iouType
         if iouType == "segm" or iouType == "bbox":
-            summarize = _summarizeDets
+            self.stats = _summarizeDets()
         elif iouType == "keypoints":
-            summarize = _summarizeKps
-        self.stats = summarize()
+            self.stats = _summarizeKps
+        else:
+            raise NotImplementedError(f"Unsupported iouType for summarize(): {iouType}")
 
     def __str__(self):
         self.summarize()
+
+
+class StatKey(NamedTuple):
+    """
+    Convenience class for keying into stats_dict. You can treat this exactly as a tuple if you
+    want, that's what the underlying representation is.
+    """
+
+    metric: str
+    iou: str
+    area: str
+    max_dets: int
+
+
+class StatKeyPerClass(NamedTuple):
+    """
+    Convenience class for keying into stats_dict_per_class. You can treat this exactly as a tuple if
+    you want, that's what the underlying representation is.
+    """
+
+    metric: str
+    iou: str
+    area: str
+    max_dets: int
+    cat_id: int
+    name: str
+
+
+def scrub_cat_name(cat_name: str) -> str:
+    cat_name = cat_name.lower()
+    for c in [" ", "-", "/", "\\"]:
+        cat_name = cat_name.replace(c, "_")
+    return cat_name
 
 
 class Params:
@@ -613,7 +639,7 @@ class Params:
         ]
         self.areaRngLbl = ["all", "small", "medium", "large"]
         self.useCats = 1
-        self.summaryIous = [0.25, 0.5, 0.75]
+        self.summaryIous = [0.25, 0.50, 0.75]
 
     def setKpParams(self):
         self.imgIds = []
