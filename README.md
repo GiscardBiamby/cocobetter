@@ -9,10 +9,11 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 
 ## Wishlist / TODO:
 
+* [x] Add per-class version of COCOeval.stats (also make it a dict as described in previous bullet)
+* [x] Improve the .stats output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
+* [ ] Make COCOeval.stats backwards compatible with original pycocotools. Right now it returns a customized array of values.
 * [ ] Pull in the faster eval code from detectron2 (if the license allows for it)
 * [ ] Add PR curve generation
-* [ ] Improve the .stats output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
-* [ ] Add per-class version of .stats (also make it a dict as described in previous bullet)
 * [ ] Add tools and classes for manipulating coco formatted json
 * [ ] Publish to pypi
 
