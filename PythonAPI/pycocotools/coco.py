@@ -51,6 +51,7 @@ import os
 import sys
 import time
 from collections import defaultdict
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -83,8 +84,12 @@ class COCO:
         self.imgToAnns, self.catToImgs = defaultdict(list), defaultdict(list)
         if not annotation_file == None:
             print("loading annotations into memory...")
+            if isinstance(annotation_file, str):
+                annotation_file = Path(annotation_file)
+            annotation_file = annotation_file.resolve()
             tic = time.time()
-            dataset = json.load(open(annotation_file, "r"))
+            with open(annotation_file, "r") as f:
+                dataset = json.load(f)
             assert (
                 type(dataset) == dict
             ), "annotation file format {} not supported".format(type(dataset))
