@@ -53,6 +53,19 @@ cd cocobetter
 pip install -e .
 ```
 
+### Check the install location
+
+Useful for when  you want to make sure your environment is using cocobetter instead of pycocotools. Use this command to check where pycocotools is being loaded from:
+
+```bash
+conda activate "YOUR_ENV_NAME"
+python -c "import pycocotools as pcc; print(pcc.__file__)"
+```
+
+Sample output:
+
+> /home/username/my_project/cocobetter/PythonAPI/pycocotools/__init__.py
+
 ## Usage
 
 From your python project:
