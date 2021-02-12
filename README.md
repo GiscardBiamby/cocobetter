@@ -9,25 +9,53 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 
 ## Wishlist / TODO:
 
-* \[] Pull in the faster eval code from detectron2 (if the license allows for it)
-* \[] Add PR curve generation
-* \[] Improve the .stats output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
-* \[] Add per-class version of .stats (also make it a dict as described in previous bullet)
-* \[] Add tools and classes for manipulating coco formatted json
-* \[] Publish to pypi
+* [ ] Pull in the faster eval code from detectron2 (if the license allows for it)
+* [ ] Add PR curve generation
+* [ ] Improve the .stats output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
+* [ ] Add per-class version of .stats (also make it a dict as described in previous bullet)
+* [ ] Add tools and classes for manipulating coco formatted json
+* [ ] Publish to pypi
 
-## Instructions
+## Installing (choose one method)
 
-To install into your project:
+### Quick Install (Non-editable)
+
+Use this method if you don't need to customize the code, and just want to install it into your python environment:
 
 ```bash
+conda activate "YOUR_ENV_NAME"
+python -m pip install \
+    git+https://github.com/GiscardBiamby/cocobetter.git#egg=pycocotools\&subdirectory=PythonAPI
+```
+
+### Quick Install (Editable)
+
+This will pull the repo into your local folder under `./src`, and install it into your python environment in develop mode. The conda package `pycocotools` will point to `./src` inside the folder you run this command from. Editing the code in `./src` it will immediately reflect in your python env (no need to reinstall).
+
+```bash
+conda activate "YOUR_ENV_NAME"
 python -m pip install -e \
     git+https://github.com/GiscardBiamby/cocobetter.git#egg=pycocotools\&subdirectory=PythonAPI
 ```
 
-This will pull the repo into your local folder under `./src`, and install it into your python environment in develop mode, so if you edit the code in `./src` it will immediately reflect in your python env. If you don't want to use develop mode remove the `-e` flag from the above command.
+OR, add this line to your `requirements.txt`:
 
-Now from your python project:
+```
+-e git+https://github.com/GiscardBiamby/cocobetter.git#egg=pycocotools\&subdirectory=PythonAPI
+```
+
+### Method 3: Clone and install
+
+```bash
+conda activate "YOUR_ENV_NAME"
+git clone git@github.com:GiscardBiamby/cocobetter.git
+cd cocobetter
+pip install -e .
+```
+
+## Usage
+
+From your python project:
 
 ```python
 from pycocotools.coco import coco
