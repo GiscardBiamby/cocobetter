@@ -11,6 +11,8 @@ from . import mask as maskUtils
 
 
 class COCOeval:
+    """Pycocotools modified to support IoU25%, and PR curves."""
+
     # Interface for evaluating detection on the Microsoft COCO dataset.
     #
     # The usage for CocoEval is as follows:
@@ -60,7 +62,7 @@ class COCOeval:
     # Data, paper, and tutorials available at:  http://mscoco.org/
     # Code written by Piotr Dollar and Tsung-Yi Lin, 2015.
     # Licensed under the Simplified BSD License [see coco/license.txt]
-    def __init__(self, cocoGt=None, cocoDt=None, iouType="segm"):
+    def __init__(self, cocoGt=None, cocoDt=None, iouType="segm", cocoParams=None):
         """
         Initialize CocoEval using coco APIs for gt and dt
         :param cocoGt: coco object with ground truth annotations
@@ -77,7 +79,10 @@ class COCOeval:
         self.eval = {}  # accumulated evaluation results
         self._gts = defaultdict(list)  # gt for evaluation
         self._dts = defaultdict(list)  # dt for evaluation
-        self.params = Params(iouType=iouType)  # parameters
+        if cocoParams:
+            self.params = cocoParams  # allows input customized parameters
+        else:
+            self.params = Params(iouType=iouType)  # parameters
         self._paramsEval = {}  # parameters for evaluation
         self.stats = []  # result summarization
         self.ious = {}  # ious between all gts and dts
@@ -464,7 +469,7 @@ class COCOeval:
 
         def _summarize(ap=1, iouThr=None, areaRng="all", maxDets=100):
             p = self.params
-            iStr = " {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}"
+            iStr = " {:<18} {} @[ iou={:<9} | area={:>6s} | maxdets={:>3d} ] = {:0.3f}"
             titleStr = "Average Precision" if ap == 1 else "Average Recall"
             typeStr = "(AP)" if ap == 1 else "(AR)"
             iouStr = (
@@ -494,23 +499,67 @@ class COCOeval:
                 mean_s = -1
             else:
                 mean_s = np.mean(s[s > -1])
+                # calculate AP(average precision) for each category
+                num_classes = len(self.params.catIds)
+                cat_dict = {
+                    c["id"]: c["name"] for c in self.cocoGt.dataset["categories"]
+                }
+                if not hasattr(self, "per_class_maps"):
+                    self.per_class_maps = {}
+                if not hasattr(self, "per_class_ars"):
+                    self.per_class_ars = {}
+                avg_ap = 0.0
+                if ap == 1:
+                    for i, cat_id in enumerate(self.params.catIds):
+                        result_key = f"({cat_id}, {cat_dict[cat_id]})_" + iStr.format(
+                            titleStr, typeStr, iouStr, areaRng, maxDets, mean_s
+                        )
+                        class_map = np.mean(s[:, :, i, :])
+                        avg_ap += class_map
+                        self.per_class_maps[result_key] = class_map
+                else:
+                    for i, cat_id in enumerate(self.params.catIds):
+                        result_key = f"({cat_id}, {cat_dict[cat_id]})_" + iStr.format(
+                            titleStr, typeStr, iouStr, areaRng, maxDets, mean_s
+                        )
+                        class_ar = np.mean(s[:, i, :])
+                        self.per_class_ars[result_key] = class_ar
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
             return mean_s
 
         def _summarizeDets():
-            stats = np.zeros((12,))
-            stats[0] = _summarize(1)
-            stats[1] = _summarize(1, iouThr=0.5, maxDets=self.params.maxDets[2])
-            stats[2] = _summarize(1, iouThr=0.75, maxDets=self.params.maxDets[2])
-            stats[3] = _summarize(1, areaRng="small", maxDets=self.params.maxDets[2])
-            stats[4] = _summarize(1, areaRng="medium", maxDets=self.params.maxDets[2])
-            stats[5] = _summarize(1, areaRng="large", maxDets=self.params.maxDets[2])
-            stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
-            stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
-            stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
-            stats[9] = _summarize(0, areaRng="small", maxDets=self.params.maxDets[2])
-            stats[10] = _summarize(0, areaRng="medium", maxDets=self.params.maxDets[2])
-            stats[11] = _summarize(0, areaRng="large", maxDets=self.params.maxDets[2])
+            index = 0
+            aps = [0, 1]
+
+            num_stats = (
+                len(aps) * len(self.params.summaryIous) * len(self.params.areaRngLbl)
+            )
+
+            stats = np.zeros((num_stats,))
+
+            for ap in aps:
+                for iou in self.params.summaryIous:
+                    for area in self.params.areaRngLbl:
+                        stats[index] = _summarize(
+                            ap,
+                            iouThr=iou,
+                            areaRng=area,
+                            maxDets=self.params.maxDets[-1],
+                        )
+                        index += 1
+
+            # stats[0] = _summarize(1)
+            # stats[1] = _summarize(1, iouThr=.25, maxDets=self.params.maxDets[2])
+            # stats[1] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
+            # stats[3] = _summarize(1, iouThr=.25, areaRng='small', maxDets=self.params.maxDets[2])
+            # stats[4] = _summarize(1, iouThr=.25, areaRng='medium', maxDets=self.params.maxDets[2])
+            # stats[5] = _summarize(1, iouThr=.25, areaRng='large', maxDets=self.params.maxDets[2])
+            # stats[6] = _summarize(0, iouThr=.25, maxDets=self.params.maxDets[0])
+            # stats[7] = _summarize(0, iouThr=.25, maxDets=self.params.maxDets[1])
+            # stats[8] = _summarize(0, iouThr=.25, maxDets=self.params.maxDets[2])
+            # stats[9] = _summarize(0, iouThr=.25, areaRng='small', maxDets=self.params.maxDets[2])
+            # stats[10] = _summarize(0, iouThr=.25, areaRng='medium', maxDets=self.params.maxDets[2])
+            # stats[11] = _summarize(0, iouThr=.25, areaRng='large', maxDets=self.params.maxDets[2])
             return stats
 
         def _summarizeKps():
@@ -550,12 +599,12 @@ class Params:
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value
         self.iouThrs = np.linspace(
-            0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True
+            0.25, 0.95, int(np.round((0.95 - 0.25) / 0.05)) + 1, endpoint=True
         )
         self.recThrs = np.linspace(
             0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True
         )
-        self.maxDets = [1, 10, 100]
+        self.maxDets = [1, 10, 100, 200]
         self.areaRng = [
             [0 ** 2, 1e5 ** 2],
             [0 ** 2, 32 ** 2],
@@ -564,6 +613,7 @@ class Params:
         ]
         self.areaRngLbl = ["all", "small", "medium", "large"]
         self.useCats = 1
+        self.summaryIous = [0.25, 0.5, 0.75]
 
     def setKpParams(self):
         self.imgIds = []
