@@ -13,8 +13,10 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 * [x] Improve the .stats output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
 * [ ] Make COCOeval.stats backwards compatible with original pycocotools. Right now it returns a customized array of values.
 * [ ] Pull in the faster eval code from detectron2 (if the license allows for it)
+  * <http://people.duke.edu/~ccc14/cspy/18G_C++_Python_pybind11.html>
 * [ ] Add PR curve generation
 * [ ] Add tools and classes for manipulating coco formatted json
+* [ ] Add tests (along with eval results and json's)
 * [ ] Publish to pypi
 
 ## Installing (choose one method)
