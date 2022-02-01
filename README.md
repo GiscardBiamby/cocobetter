@@ -21,6 +21,12 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 
 ## Installing (choose one method)
 
+### Pre-requisites
+
+```bash
+pip install cython, pybind11 setuptools
+```
+
 ### Quick Install (Non-editable)
 
 Use this method if you don't need to customize the code, and just want to install it into your python environment:
@@ -52,7 +58,7 @@ OR, add this line to your `requirements.txt`:
 ```bash
 conda activate "YOUR_ENV_NAME"
 git clone git@github.com:GiscardBiamby/cocobetter.git
-cd cocobetter
+cd cocobetter/PythonAPI
 pip install -e .
 ```
 
