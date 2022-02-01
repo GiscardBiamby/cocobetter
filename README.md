@@ -24,7 +24,7 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 ### Pre-requisites
 
 ```bash
-pip install cython, pybind11 setuptools
+pip install cython pybind11 setuptools
 ```
 
 ### Quick Install (Non-editable)
