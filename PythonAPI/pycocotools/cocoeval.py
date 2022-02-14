@@ -107,12 +107,8 @@ class COCOeval:
 
         p = self.params
         if p.useCats:
-            gts = self.cocoGt.loadAnns(
-                self.cocoGt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds)
-            )
-            dts = self.cocoDt.loadAnns(
-                self.cocoDt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds)
-            )
+            gts = self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
+            dts = self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
         else:
             gts = self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
             dts = self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds))
@@ -147,11 +143,7 @@ class COCOeval:
         # add backward compatibility if useSegm is specified in params
         if not p.useSegm is None:
             p.iouType = "segm" if p.useSegm == 1 else "bbox"
-            print(
-                "useSegm (deprecated) is not None. Running {} evaluation".format(
-                    p.iouType
-                )
-            )
+            print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))
         print("Evaluate annotation type *{}*".format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
@@ -168,9 +160,7 @@ class COCOeval:
         elif p.iouType == "keypoints":
             computeIoU = self.computeOks
         self.ious = {
-            (imgId, catId): computeIoU(imgId, catId)
-            for imgId in p.imgIds
-            for catId in catIds
+            (imgId, catId): computeIoU(imgId, catId) for imgId in p.imgIds for catId in catIds
         }
 
         evaluateImg = self.evaluateImg
@@ -329,9 +319,7 @@ class COCOeval:
                     dtm[tind, dind] = gt[m]["id"]
                     gtm[tind, m] = d["id"]
         # set unmatched detections outside of area range to ignore
-        a = np.array([d["area"] < aRng[0] or d["area"] > aRng[1] for d in dt]).reshape(
-            (1, len(dt))
-        )
+        a = np.array([d["area"] < aRng[0] or d["area"] > aRng[1] for d in dt]).reshape((1, len(dt)))
         dtIg = np.logical_or(dtIg, np.logical_and(dtm == 0, np.repeat(a, T, 0)))
         # store results for given image and category
         return {
@@ -367,9 +355,7 @@ class COCOeval:
         K = len(p.catIds) if p.useCats else 1
         A = len(p.areaRng)
         M = len(p.maxDets)
-        precision = -np.ones(
-            (T, R, K, A, M)
-        )  # -1 for the precision of absent categories
+        precision = -np.ones((T, R, K, A, M))  # -1 for the precision of absent categories
         recall = -np.ones((T, K, A, M))
         scores = -np.ones((T, R, K, A, M))
 
@@ -383,9 +369,7 @@ class COCOeval:
         # get inds to evaluate
         k_list = [n for n, k in enumerate(p.catIds) if k in setK]
         m_list = [m for n, m in enumerate(p.maxDets) if m in setM]
-        a_list = [
-            n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA
-        ]
+        a_list = [n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA]
         i_list = [n for n, i in enumerate(p.imgIds) if i in setI]
         I0 = len(_pe.imgIds)
         A0 = len(_pe.areaRng)
@@ -406,12 +390,8 @@ class COCOeval:
                     inds = np.argsort(-dtScores, kind="mergesort")
                     dtScoresSorted = dtScores[inds]
 
-                    dtm = np.concatenate(
-                        [e["dtMatches"][:, 0:maxDet] for e in E], axis=1
-                    )[:, inds]
-                    dtIg = np.concatenate(
-                        [e["dtIgnore"][:, 0:maxDet] for e in E], axis=1
-                    )[:, inds]
+                    dtm = np.concatenate([e["dtMatches"][:, 0:maxDet] for e in E], axis=1)[:, inds]
+                    dtIg = np.concatenate([e["dtIgnore"][:, 0:maxDet] for e in E], axis=1)[:, inds]
                     gtIg = np.concatenate([e["gtIgnore"] for e in E])
                     npig = np.count_nonzero(gtIg == 0)
                     if npig == 0:
@@ -486,9 +466,7 @@ class COCOeval:
                 if iouThr is None
                 else "{:0.2f}".format(iouThr)
             )
-            stats_dict_key = StatKey(
-                "AR" if ap == 0 else "AP", iouStr, areaRng, maxDets
-            )
+            stats_dict_key = StatKey("AR" if ap == 0 else "AP", iouStr, areaRng, maxDets)
             aind = [i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng]
             mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets]
             if ap == 1:
@@ -511,9 +489,7 @@ class COCOeval:
             else:
                 mean_s = np.mean(s[s > -1])
                 # Calculate AP and AR for each category:
-                cat_dict = {
-                    c["id"]: c["name"] for c in self.cocoGt.dataset["categories"]
-                }
+                cat_dict = {c["id"]: c["name"] for c in self.cocoGt.dataset["categories"]}
                 avg = 0.0
                 for i, cat_id in enumerate(self.params.catIds):
                     stats_dict_per_class_key = StatKeyPerClass._make(
@@ -609,6 +585,8 @@ class StatKeyPerClass(NamedTuple):
 
 
 def scrub_cat_name(cat_name: str) -> str:
+    if cat_name is None:
+        cat_name = "None"
     cat_name = cat_name.lower()
     for c in [" ", "-", "/", "\\"]:
         cat_name = cat_name.replace(c, "_")
@@ -627,9 +605,7 @@ class Params:
         self.iouThrs = np.linspace(
             0.25, 0.95, int(np.round((0.95 - 0.25) / 0.05)) + 1, endpoint=True
         )
-        self.recThrs = np.linspace(
-            0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True
-        )
+        self.recThrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
         self.maxDets = [1, 10, 100, 200]
         self.areaRng = [
             [0 ** 2, 1e5 ** 2],
@@ -645,12 +621,8 @@ class Params:
         self.imgIds = []
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(
-            0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True
-        )
-        self.recThrs = np.linspace(
-            0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True
-        )
+        self.iouThrs = np.linspace(0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True)
+        self.recThrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
         self.maxDets = [20]
         self.areaRng = [[0 ** 2, 1e5 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
         self.areaRngLbl = ["all", "medium", "large"]
