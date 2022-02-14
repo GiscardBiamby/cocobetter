@@ -4,11 +4,97 @@ import copy
 import datetime
 import time
 from collections import defaultdict, namedtuple
-from typing import Dict, NamedTuple, Tuple
+from typing import Dict, NamedTuple, Tuple, cast
 
 import numpy as np
+import numpy.typing as npt
 
 from . import mask as maskUtils
+
+
+class StatKey(NamedTuple):
+    """
+    Convenience class for keying into stats_dict. You can treat this exactly as a tuple if you
+    want, that's what the underlying representation is.
+    """
+
+    metric: str
+    iou: str
+    area: str
+    max_dets: int
+
+
+class StatKeyPerClass(NamedTuple):
+    """
+    Convenience class for keying into stats_dict_per_class. You can treat this exactly as a tuple if
+    you want, that's what the underlying representation is.
+    """
+
+    metric: str
+    iou: str
+    area: str
+    max_dets: int
+    cat_id: int
+    name: str
+
+
+def scrub_cat_name(cat_name: str) -> str:
+    if cat_name is None:
+        cat_name = "None"
+    cat_name = cat_name.lower()
+    for c in [" ", "-", "/", "\\"]:
+        cat_name = cat_name.replace(c, "_")
+    return cat_name
+
+
+class Params:
+    """
+    Params for coco evaluation api
+    """
+
+    def setDetParams(self):
+        self.imgIds = []
+        self.catIds = []
+        # np.arange causes trouble.  the data point on arange is slightly larger than the true value
+        self.iouThrs = np.linspace(
+            0.25, 0.95, int(np.round((0.95 - 0.25) / 0.05)) + 1, endpoint=True
+        )
+        self.recThrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
+        self.maxDets = [1, 10, 100, 200]
+        self.areaRng = [
+            [0 ** 2, 1e5 ** 2],
+            [0 ** 2, 32 ** 2],
+            [32 ** 2, 96 ** 2],
+            [96 ** 2, 1e5 ** 2],
+        ]
+        self.areaRngLbl = ["all", "small", "medium", "large"]
+        self.useCats = 1
+        self.summaryIous = [0.25, 0.50, 0.75]
+
+    def setKpParams(self):
+        self.imgIds = []
+        self.catIds = []
+        # np.arange causes trouble.  the data point on arange is slightly larger than the true value
+        self.iouThrs = np.linspace(0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True)
+        self.recThrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
+        self.maxDets = [20]
+        self.areaRng = [[0 ** 2, 1e5 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
+        self.areaRngLbl = ["all", "medium", "large"]
+        self.useCats = 1
+        # fmt: off
+        self.kpt_oks_sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62,.62, 1.07, 1.07, .87, .87, .89, .89])/10.0
+        # fmt: on
+
+    def __init__(self, iouType="segm"):
+        if iouType == "segm" or iouType == "bbox":
+            self.setDetParams()
+        elif iouType == "keypoints":
+            self.setKpParams()
+        else:
+            raise Exception("iouType not supported")
+        self.iouType = iouType
+        # useSegm is deprecated
+        self.useSegm = None
 
 
 class COCOeval:
@@ -63,7 +149,7 @@ class COCOeval:
     # Data, paper, and tutorials available at:  http://mscoco.org/
     # Code written by Piotr Dollar and Tsung-Yi Lin, 2015.
     # Licensed under the Simplified BSD License [see coco/license.txt]
-    def __init__(self, cocoGt=None, cocoDt=None, iouType="segm", cocoParams=None):
+    def __init__(self, cocoGt=None, cocoDt=None, iouType="segm", cocoParams: Params = None):
         """
         Initialize CocoEval using coco APIs for gt and dt
         :param cocoGt: coco object with ground truth annotations
@@ -81,9 +167,9 @@ class COCOeval:
         self._gts = defaultdict(list)  # gt for evaluation
         self._dts = defaultdict(list)  # dt for evaluation
         if cocoParams:
-            self.params = cocoParams  # allows input customized parameters
+            self.params: Params = cocoParams  # allows input customized parameters
         else:
-            self.params = Params(iouType=iouType)  # parameters
+            self.params: Params = Params(iouType=iouType)  # parameters
         self._paramsEval = {}  # parameters for evaluation
         self.stats = []  # result summarization
         self.ious = {}  # ious between all gts and dts
@@ -444,10 +530,10 @@ class COCOeval:
         toc = time.time()
         print("DONE (t={:0.2f}s).".format(toc - tic))
 
-    def summarize(self):
+    def summarize(self) -> npt.NDArray[np.float64]:
         """
         Compute and display summary metrics for evaluation results.
-        Note this functin can *only* be applied on the default parameter setting
+        Note this function can *only* be applied on the default parameter setting
         """
 
         def _summarize(ap=1, iouThr=None, areaRng="all", maxDets=100):
@@ -506,7 +592,7 @@ class COCOeval:
                 # print("avg: ", avg_ap / len(self.params.catIds))
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
             self.stats_dict[stats_dict_key] = mean_s
-            return mean_s
+            return cast(npt.NDArray[np.float64], mean_s)
 
         def _summarizeDets():
             index = 0
@@ -528,7 +614,7 @@ class COCOeval:
                             )
                             index += 1
 
-            return stats
+            return cast(npt.NDArray[np.float64], stats)
 
         def _summarizeKps():
             stats = np.zeros((10,))
@@ -542,7 +628,7 @@ class COCOeval:
             stats[7] = _summarize(0, maxDets=20, iouThr=0.75)
             stats[8] = _summarize(0, maxDets=20, areaRng="medium")
             stats[9] = _summarize(0, maxDets=20, areaRng="large")
-            return stats
+            return cast(npt.NDArray[np.float64], stats)
 
         if not self.eval:
             raise Exception("Please run accumulate() first")
@@ -556,88 +642,3 @@ class COCOeval:
 
     def __str__(self):
         self.summarize()
-
-
-class StatKey(NamedTuple):
-    """
-    Convenience class for keying into stats_dict. You can treat this exactly as a tuple if you
-    want, that's what the underlying representation is.
-    """
-
-    metric: str
-    iou: str
-    area: str
-    max_dets: int
-
-
-class StatKeyPerClass(NamedTuple):
-    """
-    Convenience class for keying into stats_dict_per_class. You can treat this exactly as a tuple if
-    you want, that's what the underlying representation is.
-    """
-
-    metric: str
-    iou: str
-    area: str
-    max_dets: int
-    cat_id: int
-    name: str
-
-
-def scrub_cat_name(cat_name: str) -> str:
-    if cat_name is None:
-        cat_name = "None"
-    cat_name = cat_name.lower()
-    for c in [" ", "-", "/", "\\"]:
-        cat_name = cat_name.replace(c, "_")
-    return cat_name
-
-
-class Params:
-    """
-    Params for coco evaluation api
-    """
-
-    def setDetParams(self):
-        self.imgIds = []
-        self.catIds = []
-        # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(
-            0.25, 0.95, int(np.round((0.95 - 0.25) / 0.05)) + 1, endpoint=True
-        )
-        self.recThrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
-        self.maxDets = [1, 10, 100, 200]
-        self.areaRng = [
-            [0 ** 2, 1e5 ** 2],
-            [0 ** 2, 32 ** 2],
-            [32 ** 2, 96 ** 2],
-            [96 ** 2, 1e5 ** 2],
-        ]
-        self.areaRngLbl = ["all", "small", "medium", "large"]
-        self.useCats = 1
-        self.summaryIous = [0.25, 0.50, 0.75]
-
-    def setKpParams(self):
-        self.imgIds = []
-        self.catIds = []
-        # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True)
-        self.recThrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
-        self.maxDets = [20]
-        self.areaRng = [[0 ** 2, 1e5 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
-        self.areaRngLbl = ["all", "medium", "large"]
-        self.useCats = 1
-        # fmt: off
-        self.kpt_oks_sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62,.62, 1.07, 1.07, .87, .87, .89, .89])/10.0
-        # fmt: on
-
-    def __init__(self, iouType="segm"):
-        if iouType == "segm" or iouType == "bbox":
-            self.setDetParams()
-        elif iouType == "keypoints":
-            self.setKpParams()
-        else:
-            raise Exception("iouType not supported")
-        self.iouType = iouType
-        # useSegm is deprecated
-        self.useSegm = None
