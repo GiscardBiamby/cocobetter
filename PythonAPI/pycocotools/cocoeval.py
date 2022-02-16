@@ -597,7 +597,7 @@ class COCOeval:
         def _summarizeDets():
             index = 0
             aps = [0, 1]  # 0 = recall, 1 = precision
-            max_dets_list = [self.params.maxDets[-1]]
+            max_dets_list = self.params.maxDets
             num_stats = (
                 len(aps)
                 * len(self.params.summaryIous)
