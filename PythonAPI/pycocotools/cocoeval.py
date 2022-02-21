@@ -3,7 +3,7 @@ __author__ = "tsungyi"
 import copy
 import datetime
 import time
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from typing import Dict, NamedTuple, Tuple, cast
 
 import numpy as np
@@ -82,7 +82,7 @@ class Params:
         self.areaRngLbl = ["all", "medium", "large"]
         self.useCats = 1
         # fmt: off
-        self.kpt_oks_sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62,.62, 1.07, 1.07, .87, .87, .89, .89])/10.0
+        self.kpt_oks_sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89]) / 10.0  # noqa: E501
         # fmt: on
 
     def __init__(self, iouType="segm"):
@@ -170,10 +170,10 @@ class COCOeval:
             self.params: Params = cocoParams  # allows input customized parameters
         else:
             self.params: Params = Params(iouType=iouType)  # parameters
-        self._paramsEval = {}  # parameters for evaluation
+        self._paramsEval = copy.deepcopy(self.params)  # parameters for evaluation
         self.stats = []  # result summarization
         self.ious = {}  # ious between all gts and dts
-        if not cocoGt is None:
+        if cocoGt is not None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
         self.stats_dict: Dict[StatKey, float] = {}
@@ -227,7 +227,7 @@ class COCOeval:
         print("Running per image evaluation...")
         p = self.params
         # add backward compatibility if useSegm is specified in params
-        if not p.useSegm is None:
+        if p.useSegm is not None:
             p.iouType = "segm" if p.useSegm == 1 else "bbox"
             print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))
         print("Evaluate annotation type *{}*".format(p.iouType))
@@ -530,7 +530,7 @@ class COCOeval:
         toc = time.time()
         print("DONE (t={:0.2f}s).".format(toc - tic))
 
-    def summarize(self) -> npt.NDArray[np.float64]:
+    def summarize(self):
         """
         Compute and display summary metrics for evaluation results.
         Note this function can *only* be applied on the default parameter setting

@@ -52,6 +52,8 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
+from typing import Any, Dict, List
+from urllib.request import urlretrieve
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -59,12 +61,6 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 
 from . import mask as maskUtils
-
-PYTHON_VERSION = sys.version_info[0]
-if PYTHON_VERSION == 2:
-    from urllib import urlretrieve
-elif PYTHON_VERSION == 3:
-    from urllib.request import urlretrieve
 
 
 def _isArrayLike(obj):
@@ -82,7 +78,7 @@ class COCO:
         # load dataset
         self.dataset, self.anns, self.cats, self.imgs = dict(), dict(), dict(), dict()
         self.imgToAnns, self.catToImgs = defaultdict(list), defaultdict(list)
-        if not annotation_file == None:
+        if annotation_file is not None:
             print("loading annotations into memory...")
             if isinstance(annotation_file, str):
                 annotation_file = Path(annotation_file)
@@ -164,7 +160,7 @@ class COCO:
                 if len(areaRng) == 0
                 else [ann for ann in anns if ann["area"] > areaRng[0] and ann["area"] < areaRng[1]]
             )
-        if not iscrowd == None:
+        if iscrowd is not None:
             ids = [ann["id"] for ann in anns if ann["iscrowd"] == iscrowd]
         else:
             ids = [ann["id"] for ann in anns]
@@ -228,7 +224,7 @@ class COCO:
         elif type(ids) == int:
             return [self.anns[ids]]
 
-    def loadCats(self, ids=[]):
+    def loadCats(self, ids=[]) -> List[Dict[str, Any]]:
         """
         Load cats with the specified ids.
         :param ids (int array)       : integer ids specifying cats
@@ -238,6 +234,7 @@ class COCO:
             return [self.cats[id] for id in ids]
         elif type(ids) == int:
             return [self.cats[ids]]
+        return []
 
     def loadImgs(self, ids=[]):
         """
@@ -291,7 +288,8 @@ class COCO:
                         img = np.ones((m.shape[0], m.shape[1], 3))
                         if ann["iscrowd"] == 1:
                             color_mask = np.array([2.0, 166.0, 101.0]) / 255
-                        if ann["iscrowd"] == 0:
+                        else:
+                            # if ann["iscrowd"] == 0:
                             color_mask = np.random.random((1, 3)).tolist()[0]
                         for i in range(3):
                             img[:, :, i] = color_mask[i]
@@ -356,7 +354,7 @@ class COCO:
 
         print("Loading and preparing results...")
         tic = time.time()
-        if type(resFile) == str or (PYTHON_VERSION == 2 and type(resFile) == unicode):
+        if type(resFile) == str:
             anns = json.load(open(resFile))
         elif type(resFile) == np.ndarray:
             anns = self.loadNumpyAnnotations(resFile)
@@ -379,7 +377,7 @@ class COCO:
             for id, ann in enumerate(anns):
                 bb = ann["bbox"]
                 x1, x2, y1, y2 = [bb[0], bb[0] + bb[2], bb[1], bb[1] + bb[3]]
-                if not "segmentation" in ann:
+                if "segmentation" not in ann:
                     ann["segmentation"] = [[x1, y1, x1, y2, x2, y2, x2, y1]]
                 ann["area"] = bb[2] * bb[3]
                 ann["id"] = id + 1
@@ -389,7 +387,7 @@ class COCO:
             for id, ann in enumerate(anns):
                 # now only support compressed RLE format as segmentation results
                 ann["area"] = maskUtils.area(ann["segmentation"])
-                if not "bbox" in ann:
+                if "bbox" not in ann:
                     ann["bbox"] = maskUtils.toBbox(ann["segmentation"])
                 ann["id"] = id + 1
                 ann["iscrowd"] = 0
@@ -412,9 +410,13 @@ class COCO:
     def download(self, tarDir=None, imgIds=[]):
         """
         Download COCO images from mscoco.org server.
-        :param tarDir (str): COCO results directory name
-               imgIds (list): images to be downloaded
-        :return:
+
+        Args:
+            - tarDir (_type_, optional): COCO results directory name. Defaults to None.
+            - imgIds (list, optional): images to be downloaded. Defaults to [].
+
+        Returns:
+            _type_: -1 if an error occurs, else None
         """
         if tarDir is None:
             print("Please specify target directory")
