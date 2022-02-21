@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, OrderedDict, Tuple
 
 from ..coco import COCO
+from .img import Img, bbox
 
 __all__ = ["CocoToComsat"]
 
