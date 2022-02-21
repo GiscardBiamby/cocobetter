@@ -1,9 +1,15 @@
 {
-    "autoDocstring.docstringFormat": "google",
-    "autoDocstring.startOnNewLine": true,
-    "breadcrumbs.enabled": true,
+    "cSpell.words": [
+        "some_new_word",
+    ],
     "diffEditor.ignoreTrimWhitespace": false,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": true,
+        "source.fixAll.shellcheck": true,
+        "source.organizeImports": true
+    },
     "editor.cursorSmoothCaretAnimation": true,
+    "editor.formatOnSave": true,
     "editor.renderControlCharacters": true,
     "editor.renderWhitespace": "all",
     "editor.wordWrapColumn": 100,
@@ -15,31 +21,47 @@
         "**/XDG_CACHE_HOME": true,
         "**/__pycache__/**": true
     },
+    "jupyter.allowUnauthorizedRemoteConnection": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "python.defaultInterpreterPath": "~/anaconda3/envs/coco/bin/python",
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.formatting.autopep8Args": [
+        "--global-config=${workspaceFolder}/setup.cfg",
+        "--experimental"
+    ],
+    "python.formatting.blackArgs": [
+        "--line-length",
+        "100"
+    ],
     "python.formatting.provider": "black",
+    "python.linting.enabled": true,
     "python.linting.flake8Args": [
         "--verbose"
     ],
     "python.linting.flake8Enabled": true,
     "python.linting.pylintArgs": [
-        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*",
-        "--rcfile=${workspaceFolder}/code/.pylintrc"
+        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*"
     ],
-    "python.linting.pylintEnabled": true,
-    "python.pythonPath": "~/anaconda3/envs/fsdet/bin/python",
-    "python.testing.nosetestsEnabled": false,
+    "python.linting.pylintEnabled": false,
+    "python.sortImports.path": "isort",
+    // No need to use this becauase the settings in setup.cfg configure isort to be compatible with black:
+    // "python.sortImports.args": [
+    //     "--profile",
+    //     "black",
+    // ],
     "python.testing.pytestEnabled": false,
-    "python.testing.unittestArgs": [
-        "-v",
-        "-s",
-        ".",
-        "-p",
-        "test_*.py"
-    ],
-    "python.testing.unittestEnabled": true,
+    "python.testing.unittestEnabled": false,
     "rewrap.wrappingColumn": 100,
-    "jupyter.allowUnauthorizedRemoteConnection": true,
-    "python.formatting.blackArgs": [
-        "--line-length",
-        "100"
+    "shellcheck.customArgs": [
+        "--source-path=SCRIPTDIR",
+        "--external-sources"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext"
+    ],
+    "spellright.language": [
+        "en_US"
     ]
 }
