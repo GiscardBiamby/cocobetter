@@ -14,8 +14,8 @@ from . import mask as maskUtils
 
 class StatKey(NamedTuple):
     """
-    Convenience class for keying into stats_dict. You can treat this exactly as a tuple if you
-    want, that's what the underlying representation is.
+    Convenience class for keying into stats_dict. You can treat this exactly as a tuple if you want,
+    that's what the underlying representation is.
     """
 
     metric: str
