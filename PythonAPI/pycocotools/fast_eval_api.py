@@ -18,8 +18,7 @@ class COCOeval_opt(COCOeval):
         Run per image evaluation on given images and store results in self.evalImgs_cpp, a
         datastructure that isn't readable from Python but is used by a c++ implementation of
         accumulate().  Unlike the original COCO PythonAPI, we don't populate the datastructure
-        self.evalImgs because this datastructure is a computational bottleneck.
-        :return: None
+        self.evalImgs because this datastructure is a computational bottleneck. :return: None
         """
         tic = time.time()
 
@@ -96,8 +95,8 @@ class COCOeval_opt(COCOeval):
 
     def accumulate(self):
         """
-        Accumulate per image evaluation results and store the result in self.eval.  Does not
-        support changing parameter settings from those used by self.evaluate()
+        Accumulate per image evaluation results and store the result in self.eval.  Does not support
+        changing parameter settings from those used by self.evaluate()
         """
         print("Accumulating evaluation results...")
         tic = time.time()
