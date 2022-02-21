@@ -52,7 +52,7 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Union
 from urllib.request import urlretrieve
 
 import matplotlib.pyplot as plt
@@ -68,7 +68,7 @@ def _isArrayLike(obj):
 
 
 class COCO:
-    def __init__(self, annotation_file=None):
+    def __init__(self, annotation_file: Optional[Union[str, Path]] = None):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
