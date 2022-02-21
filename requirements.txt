@@ -2,6 +2,7 @@ cython
 ninja
 pillow
 pybind11
+scikit-image
 setuptools
 tqdm
 

@@ -33,7 +33,7 @@ python -m ipykernel install --user --name="${ENV_NAME}"
 # Install jupyter extensions
 jupyter contrib nbextension install --user
 
-pushd ..
+pushd ./PythonAPI || exit
 pip install -e .
 popd || exit
 
