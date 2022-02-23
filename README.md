@@ -11,8 +11,8 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 ## Wishlist / TODO
 
 * [x] Add per-class version of `COCOeval.stats` (also make it a dict as described in previous bullet)
-* [x] Improve the `.stats` output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
-* [ ] Make `COCOeval.stats` backwards compatible with original pycocotools. Right now it returns a customized array of values, so it's not full drop-in replacement. Existing code that assumes which metric is in each index of the `.stats` property will get the wrong values. Easy to workaround for now.
+* [x] Improve the `.stats` output to make it easier to pull out individual stats without using hardcoded ordinals/indexes. You can access the stats via `COCOeval.stats_dict`
+* [ ] Make `COCOeval.stats` backwards compatible with original pycocotools. Right now it returns a customized array of values, so it's not full drop-in replacement. Existing code that assumes which metric is in each index of the `.stats` property will get the wrong values. Easy to workaround for now is to switch to using `COCOeval.stats_dict`.
 * [ ] Pull in the faster eval code from detectron2 (if the license allows for it)
   * <http://people.duke.edu/~ccc14/cspy/18G_C++_Python_pybind11.html>
 * [ ] Add PR curve generation
