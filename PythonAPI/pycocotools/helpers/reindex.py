@@ -3,7 +3,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Dict, Union
 
-from pycocotools.coco import COCO
+from ..coco import COCO
+from .utils import load_json, save_json
 
 __all__ = ["reindex_coco_json"]
 
@@ -29,8 +30,7 @@ def reindex_coco_json(input_file: Union[str, Path]):
             root_json["licenses"] = deepcopy(coco.dataset["licenses"])
         root_json["images"] = coco.dataset["images"]
         root_json["annotations"] = new_anns
-        with open(input_file, "w", encoding="utf-8") as coco_file:
-            coco_file.write(json.dumps(root_json, indent=4, sort_keys=True))
+        save_json(input_file, root_json)
     else:
         print("cat_id 0 is either already background, or unused. Nothing to do.")
 

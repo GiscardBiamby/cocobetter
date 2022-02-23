@@ -8,18 +8,7 @@ import pandas as pd
 
 from ..coco import COCO
 from .class_dist import CocoClassDistHelper
-
-
-def load_json(json_path: Path) -> Dict[str, Any]:
-    """
-    Args:
-        json_path: Path to json file
-
-    Returns: json dictionary
-    """
-    with open(json_path) as f:
-        data = json.load(f)
-    return data
+from .utils import load_json, save_json
 
 
 # Build some category count info:

@@ -1,15 +1,9 @@
-"""
-cocohelpers is a module with helper classes and functions related to the MS COCO API. Includes
-helpers for building COCO formatted json, inspecting class distribution, and generating a train/val
-split.
-"""
-import json
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, OrderedDict, Tuple
-
+from typing import Any, Dict, List
 
 from ..coco import COCO
+from .utils import save_json
 
 __all__ = ["CocoJsonBuilder", "COCOShrinker"]
 
@@ -22,23 +16,25 @@ class CocoJsonBuilder(object):
     def __init__(
         self,
         categories: List[Dict[str, object]],
-        subset_cat_ids: list = [],
+        subset_cat_ids: List[int] = [],
         dest_path="",
         dest_name="",
-        keep_empty_images=False,
+        keep_empty_images=True,
     ):
         """
         Args:
 
             categories: this can be the COCO.dataset['categories'] property if you
-                are building a COCO json derived from an existing COCO json and don't
-                want to modify the classes. It's a list of dictionary objects. Each dict has
-                three keys: "id":int = category id, "supercatetory": str = name of parent
-                category, and a "name": str = name of category.
+                are building a COCO json derived from an existing COCO json and don't want to modify
+                the classes. It's a list of dictionary objects. Each dict has three keys: "id":int =
+                category id, "supercatetory": str = name of parent category, and a "name": str =
+                name of category.
+
+            subset_cat_ids: list of category_id's. If specified, the builder will exclude
+                annotations for any categories not in this list.
 
             dest_path: str or pathlib.Path instance, holding the path to directory where
-                the new COCO formatted annotations
-                file (dest_name) will be saved.
+                the new COCO formatted annotations file (dest_name) will be saved.
 
             dest_name: str of the filename where the generated json will be saved to.
         """
@@ -67,7 +63,9 @@ class CocoJsonBuilder(object):
         # ), f"dest_path: '{self.dest_path}' is not a directory"
 
     def generate_info(self) -> Dict[str, str]:
-        """returns: dictionary of descriptive info about the dataset."""
+        """
+        Returns: A dictionary of descriptive info about the dataset.
+        """
         info_json = {
             "description": "XView Dataset",
             "url": "http://xviewdataset.org/",
@@ -94,22 +92,22 @@ class CocoJsonBuilder(object):
 
         Args:
             img: A dictionary of image attributes. This gets added verbatim to the
-                json, so in typical use cases when you are building a coco json from an
-                existing coco json, you would just pull the entire coco.imgs[img_id]
-                object and pass it as the value for this parameter.
+                json, so in typical use cases when you are building a coco json from an existing
+                coco json, you would just pull the entire coco.imgs[img_id] object and pass it as
+                the value for this parameter.
+
             annotations: annotations of the image to add. list of dictionaries.
-                Each dict is one annotation, it contains all the properties of the
-                annotation that should appear in the coco json. For example, when using
-                this json builder to build JSON's for a train/val split, the
-                annotations can be copied straight from the coco object for the full
-                dataset, and passed into this parameter.
+                Each dict is one annotation, it contains all the properties of the annotation that
+                should appear in the coco json. For example, when using this json builder to build
+                JSON's for a train/val split, the annotations can be copied straight from the coco
+                object for the full dataset, and passed into this parameter.
 
         Returns: None
         """
         temp_anns = []
         for ann in annotations:
-            # if builder was initialized with subset_cat_ids, only the corresponding annotations
-            # are re-indexed and added
+            # if builder was initialized with subset_cat_ids, only the corresponding annotations are
+            # re-indexed and added
             if self.subset_cat_ids:
                 if ann["category_id"] in self.subset_cat_ids:
                     new_ann = deepcopy(ann)
@@ -147,13 +145,13 @@ class CocoJsonBuilder(object):
         """Saves the json to the dest_path/dest_name location."""
         file_path = self.dest_path / self.dest_name
         print(f"Writing output to: '{file_path}'")
-        root_json = self.get_json()
-        with open(file_path, "w") as coco_file:
-            coco_file.write(json.dumps(root_json))
+        save_json(file_path, data=self.get_json())
 
 
 class COCOShrinker:
-    """Shrinker takes an MS COCO formatted dataset and creates a tiny version of it."""
+    """
+    Shrinker takes an MS COCO formatted dataset and creates a tiny version of it.
+    """
 
     def __init__(self, dataset_path: Path, keep_empty_images=False) -> None:
         assert dataset_path.exists(), f"dataset_path: '{dataset_path}' does not exist"

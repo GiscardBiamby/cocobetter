@@ -1,11 +1,13 @@
-import copy
 import json
 from copy import deepcopy
 from pathlib import Path
+from shutil import copy
 from typing import Any, Dict, List, OrderedDict, Tuple
 
 from ..coco import COCO
+from .darknet import CocoToDarknet
 from .img import Img, bbox
+from .utils import load_json, save_json
 
 __all__ = ["CocoToComsat"]
 
@@ -106,14 +108,8 @@ class CocoToComsat:
 
         image_id = str(image["id"])
         labels_file_name = Path(f"LABELS_{image_id}.json")
-
-        # labels_base = dst_base / image_id / "labels"
-
         labels_file_path = dst_base / image_id / "labels" / labels_file_name
-
-        # save labels to json
-        with open(labels_file_path, "w") as labels_file:
-            labels_file.write(json.dumps(root_json))
+        save_json(labels_file_path, root_json)
 
     @staticmethod
     def coco_to_comsat_pixel_coords(ann):
@@ -182,15 +178,10 @@ class CocoToComsat:
             "image_height": image["height"],
             "image_source": "XVIEW",
         }
-
         image_id = str(image["id"])
         metadata_file_name = f"METADATA_{image_id}.json"
-
         metadata_file_path = dst_base / image_id / "metadata" / metadata_file_name
-
-        # save labels to json
-        with open(metadata_file_path, "w") as metadata_file:
-            metadata_file.write(json.dumps(root_json))
+        save_json(metadata_file_path, root_json)
 
     @staticmethod
     def generate_names(names_path: Path, coco: COCO) -> None:
