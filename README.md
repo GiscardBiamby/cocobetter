@@ -4,20 +4,25 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 
 ## What's different from the official?
 
-* Provides custom max_dets up to 1000
-* Support for calculating AP and AR at IoU threshold of 25% (official version does AP50, AP75, and AP)
+* Provides support for custom max_dets settings
+* Adds metrics AP and AR at IoU threshold of 25% (official version does AP50, AP75, and AP)
+* Various helper classes for building, converting, shrinking, inspecting, etc, COCO formated data.
 
-## Wishlist / TODO:
+## Wishlist / TODO
 
-* [x] Add per-class version of COCOeval.stats (also make it a dict as described in previous bullet)
-* [x] Improve the .stats output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
-* [ ] Make COCOeval.stats backwards compatible with original pycocotools. Right now it returns a customized array of values.
+* [x] Add per-class version of `COCOeval.stats` (also make it a dict as described in previous bullet)
+* [x] Improve the `.stats` output to make it easier to pull out individual stats without using hardcoded ordinals/indexes
+* [ ] Make `COCOeval.stats` backwards compatible with original pycocotools. Right now it returns a customized array of values, so it's not full drop-in replacement. Existing code that assumes which metric is in each index of the `.stats` property will get the wrong values. Easy to workaround for now.
 * [ ] Pull in the faster eval code from detectron2 (if the license allows for it)
   * <http://people.duke.edu/~ccc14/cspy/18G_C++_Python_pybind11.html>
 * [ ] Add PR curve generation
-* [ ] Add tools and classes for manipulating coco formatted json
+* [x] Add tools and classes for manipulating coco formatted json
 * [ ] Add tests (along with eval results and json's)
 * [ ] Publish to pypi
+* [ ] Test the anchor box clustering
+* [ ] Merge in latest changes from pycocotools (2.0.2>=)
+* [ ] Add more useful notebooks
+* [ ] Add documentation / examples of how to use some of the features
 
 ## Installing (choose one method)
 
@@ -49,7 +54,7 @@ python -m pip install -e \
 
 OR, add this line to your `requirements.txt`:
 
-```
+```bash
 -e git+https://github.com/GiscardBiamby/cocobetter.git#egg=pycocotools\&subdirectory=PythonAPI
 ```
 
@@ -73,7 +78,9 @@ python -c "import pycocotools as pcc; print(pcc.__file__)"
 
 Sample output:
 
+```bash
 > /home/username/my_project/cocobetter/PythonAPI/pycocotools/__init__.py
+```
 
 ## Usage
 
