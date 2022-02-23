@@ -62,6 +62,7 @@ from matplotlib.patches import Polygon
 
 from . import mask as maskUtils
 
+__all__ = ["COCO"]
 
 def _isArrayLike(obj):
     return hasattr(obj, "__iter__") and hasattr(obj, "__len__")
