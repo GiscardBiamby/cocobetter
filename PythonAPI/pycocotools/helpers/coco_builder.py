@@ -3,16 +3,11 @@ cocohelpers is a module with helper classes and functions related to the MS COCO
 helpers for building COCO formatted json, inspecting class distribution, and generating a train/val
 split.
 """
-import copy
 import json
-import random
-from collections import Counter, defaultdict
 from copy import deepcopy
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, OrderedDict, Tuple
 
-import numpy as np
 
 from ..coco import COCO
 
@@ -194,29 +189,3 @@ class COCOShrinker:
                 builder.add_image(coco.imgs[img_id], anns)
         builder.save()
         return dest_path
-
-
-def split(data: List, test_size: float = 0.2, random_state=None) -> Tuple[List[Any], List[Any]]:
-    """
-    Similar to scikit learn, creates train/test splits of the passed in data.
-
-    Args:
-        data: A list or iterable type, of data to split.
-        test_size: value in [0, 1.0] indicating the size of the test split.
-        random_state: an int or RandomState object to seed the numpy randomness.
-
-    Returns: 2-tuple of lists; (train, test), where each item in data has been placed
-        into either the train or test split.
-    """
-    n = len(data)
-    num_test = int(np.ceil(test_size * n))
-    # print(F"n:{n}, num_test:{num_test}")
-    np.random.seed(random_state)
-    test_idx = set(np.random.choice(range(n), num_test))
-    data_test, data_train = list(), list()
-    for idx, datum in enumerate(data):
-        if idx in test_idx:
-            data_test.append(data[idx])
-        else:
-            data_train.append(data[idx])
-    return data_train, data_test
