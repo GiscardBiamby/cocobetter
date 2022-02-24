@@ -3,6 +3,7 @@ Created on Feb 20, 2017
 
 @author: jumabek
 """
+
 import argparse
 import math
 import os
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import List, Union
 
 import numpy as np
+from sklearn.cluster import KMeans
 from tqdm.auto import tqdm
 
 from ..coco import COCO
@@ -133,7 +135,12 @@ def compute_anchors_old(
         print("centroids.shape", centroids.shape)
 
 
-from sklearn.cluster import KMeans
+def scale_dim(w, h, from_w=1280, from_h=720, dim_to=640):
+    return (
+        w * (dim_to / from_w),
+        h * (dim_to / from_h),
+        # (h * (dim_to / from_h)) / (w * (dim_to / from_w)),
+    )
 
 
 def compute_anchors(
@@ -149,18 +156,26 @@ def compute_anchors(
     # size = np.zeros((1, 1, 3))
     coco = COCO(ann_path)
     for ann in coco.dataset["annotations"]:
-        annotation_dims.append(tuple(map(float, (ann["bbox"][2], ann["bbox"][3]))))
+        img = coco.imgs[ann["image_id"]]
+        annotation_dims.append(
+            scale_dim(ann["bbox"][2], ann["bbox"][3], from_w=img["width"], from_h=img["height"])
+        )
     annotation_dims = np.array(annotation_dims)
     eps = 0.005
 
+    results = {}
     if isinstance(num_clusters, list):
         for _num_clusters in range(num_clusters[0], num_clusters[1]):
             print("")
             print("kmeans clustering, k = ", _num_clusters)
             kmeans = KMeans(n_clusters=_num_clusters, random_state=0).fit(annotation_dims)
-            sorted_indices = np.argsort(kmeans.cluster_centers_[:, 1])
-            clusters = kmeans.cluster_centers_[sorted_indices]
+            clusters = kmeans.cluster_centers_[np.argsort(kmeans.cluster_centers_[:, 1])]
             iou = avg_IOU(annotation_dims, clusters)
+            results[_num_clusters] = {
+                "labels": kmeans.labels_,
+                "clusters": clusters,
+                "iou": iou,
+            }
             print("Labels: ", kmeans.labels_)
             print("Clusters: ", clusters)
             print("h/w ratios: ", clusters[:, 1] / clusters[:, 0])
@@ -169,6 +184,14 @@ def compute_anchors(
                 print(f"Desired IoU {stop_at_iou} reached, ending loop early at k={_num_clusters}")
                 break
     else:
-        kmeans = KMeans(n_clusters=2, random_state=0).fit(annotation_dims)
+        kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(annotation_dims)
+        clusters = kmeans.cluster_centers_[np.argsort(kmeans.cluster_centers_[:, 1])]
+        iou = avg_IOU(annotation_dims, clusters)
+        results[num_clusters] = {
+            "labels": kmeans.labels_,
+            "clusters": clusters,
+            "iou": iou,
+        }
         print(kmeans.labels_)
         print(kmeans.cluster_centers_)
+    return results
