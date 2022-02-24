@@ -38,6 +38,10 @@ class CocoJsonBuilder(object):
 
             dest_name: str of the filename where the generated json will be saved to.
         """
+        if dest_path:
+            if isinstance(dest_path, str):
+                dest_path = Path(dest_path)
+            assert dest_path.is_dir(), "dest_path should be a directory: " + str(dest_path)
         self.categories = categories
         self.subset_cat_ids = subset_cat_ids
         self.new_categories = []
@@ -144,8 +148,12 @@ class CocoJsonBuilder(object):
     def save(self) -> None:
         """Saves the json to the dest_path/dest_name location."""
         file_path = self.dest_path / self.dest_name
-        print(f"Writing output to: '{file_path}'")
-        save_json(file_path, data=self.get_json())
+        dataset = self.get_json()
+        print(
+            f"Writing coco_builder (num_img: { len(dataset['images']) }, "
+            f"num_ann: { len(dataset['annotations']) }) output to: '{file_path}'"
+        )
+        save_json(file_path, data=dataset)
 
 
 class COCOShrinker:

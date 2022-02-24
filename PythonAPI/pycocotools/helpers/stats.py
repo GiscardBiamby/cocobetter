@@ -78,21 +78,20 @@ def show_img_stats(coco: COCO) -> None:
     print(counts.describe())
 
 
-def check_stats(args):
+def check_stats(ann_path: Path):
     """
     Display various stats about the coco formatted dataset. Category counts, image counts,
     annotation counts, image dimensions, how many empty images there are, etc.
     """
-    ann_path: Path = args.ann_path
     assert ann_path.exists() and ann_path.is_file()
     coco = CocoClassDistHelper(ann_path)
     show_class_img_and_ann_counts(coco)
     show_img_stats(coco)
 
 
-def check_boxes(args):
+def check_boxes(ann_path: Path):
     """Basic checks on validity of bounding boxes """
-    data = load_json(args.ann_path)
+    data = load_json(ann_path)
     anns = data["annotations"]
     invalids = []
     for ann in anns:
@@ -135,6 +134,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if args.action == "stats":
-        check_stats(args)
+        check_stats(args.ann_path)
     elif args.action == "box_check":
-        check_boxes(args)
+        check_boxes(args.ann_path)
