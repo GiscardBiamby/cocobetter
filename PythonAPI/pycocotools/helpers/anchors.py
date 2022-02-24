@@ -9,14 +9,13 @@ import os
 import random
 import shutil
 import sys
-from os import listdir
-from os.path import isfile, join
+from pathlib import Path
+from typing import List, Union
 
-# import cv2
 import numpy as np
+from tqdm.auto import tqdm
 
-width_in_cfg_file = 416.0
-height_in_cfg_file = 416.0
+from ..coco import COCO
 
 
 def IOU(x, centroids):
@@ -50,15 +49,10 @@ def write_anchors_to_file(centroids, X, anchor_file):
     f = open(anchor_file, "w")
 
     anchors = centroids.copy()
-    print(anchors.shape)
-
-    for i in range(anchors.shape[0]):
-        anchors[i][0] *= width_in_cfg_file / 32.0
-        anchors[i][1] *= height_in_cfg_file / 32.0
-
     widths = anchors[:, 0]
-    sorted_indices = np.argsort(widths)
-
+    heights = anchors[:, 1]
+    sorted_indices = np.argsort(heights)
+    print(anchors.shape)
     print("Anchors = ", anchors[sorted_indices])
 
     for i in sorted_indices[:-1]:
@@ -67,12 +61,13 @@ def write_anchors_to_file(centroids, X, anchor_file):
     # there should not be comma after last anchor, that's why
     f.write("%0.2f,%0.2f\n" % (anchors[sorted_indices[-1:], 0], anchors[sorted_indices[-1:], 1]))
 
+    print("avg_IOU(X, centroids): ", avg_IOU(X, centroids))
     f.write("%f\n" % (avg_IOU(X, centroids)))
     print()
 
 
-def kmeans(X, centroids, eps, anchor_file):
-
+def kmeans(X, centroids, eps, anchor_file, num_clusters):
+    print("kmeans clustering, k = ", num_clusters)
     N = X.shape[0]
     iterations = 0
     k, dim = centroids.shape
@@ -88,7 +83,7 @@ def kmeans(X, centroids, eps, anchor_file):
             D.append(d)
         D = np.array(D)  # D.shape = (N,k)
 
-        print("iter {}: dists = {}".format(iter, np.sum(np.abs(old_D - D))))
+        # print("iter {}: dists = {}".format(iter, np.sum(np.abs(old_D - D))))
 
         # assign samples to centroids
         assignments = np.argmin(D, axis=1)
@@ -109,67 +104,71 @@ def kmeans(X, centroids, eps, anchor_file):
         old_D = D.copy()
 
 
-def main(argv):
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-filelist",
-        default="\\path\\to\\voc\\filelist\\train.txt",
-        help="path to filelist\n",
-    )
-    parser.add_argument(
-        "-output_dir",
-        default="generated_anchors/anchors",
-        type=str,
-        help="Output anchor directory\n",
-    )
-    parser.add_argument("-num_clusters", default=0, type=int, help="number of clusters\n")
-
-    args = parser.parse_args()
-
-    if not os.path.exists(args.output_dir):
-        os.mkdir(args.output_dir)
-
-    f = open(args.filelist)
-
-    lines = [line.rstrip("\n") for line in f.readlines()]
+def compute_anchors_old(
+    ann_path: Path, output_dir: Path, num_clusters: Union[int, List[int]] = [1, 12]
+):
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
 
     annotation_dims = []
-
-    size = np.zeros((1, 1, 3))
-    for line in lines:
-
-        # line = line.replace('images','labels')
-        # line = line.replace('img1','labels')
-        line = line.replace("JPEGImages", "labels")
-
-        line = line.replace(".jpg", ".txt")
-        line = line.replace(".png", ".txt")
-        print(line)
-        f2 = open(line)
-        for line in f2.readlines():
-            line = line.rstrip("\n")
-            w, h = line.split(" ")[3:]
-            # print(w,h)
-            annotation_dims.append(tuple(map(float, (w, h))))
+    # size = np.zeros((1, 1, 3))
+    coco = COCO(ann_path)
+    for ann in coco.dataset["annotations"]:
+        annotation_dims.append(tuple(map(float, (ann["bbox"][2], ann["bbox"][3]))))
     annotation_dims = np.array(annotation_dims)
-
     eps = 0.005
 
-    if args.num_clusters == 0:
-        for num_clusters in range(4, 12):  # we make 1 through 10 clusters
-            anchor_file = join(args.output_dir, "anchors%d.txt" % (num_clusters))
-
-            indices = [random.randrange(annotation_dims.shape[0]) for i in range(num_clusters)]
+    if isinstance(num_clusters, list):
+        for _num_clusters in range(num_clusters[0], num_clusters[1]):
+            anchor_file = output_dir / f"anchors-num_clusters_{_num_clusters}.txt"
+            indices = [random.randrange(annotation_dims.shape[0]) for i in range(_num_clusters)]
             centroids = annotation_dims[indices]
-            kmeans(annotation_dims, centroids, eps, anchor_file)
+            kmeans(annotation_dims, centroids, eps, anchor_file, _num_clusters)
             print("centroids.shape", centroids.shape)
     else:
-        anchor_file = join(args.output_dir, "anchors%d.txt" % (args.num_clusters))
-        indices = [random.randrange(annotation_dims.shape[0]) for i in range(args.num_clusters)]
+        anchor_file = output_dir / f"anchors-num_clusters_{num_clusters}.txt"
+        indices = [random.randrange(annotation_dims.shape[0]) for i in range(num_clusters)]
         centroids = annotation_dims[indices]
-        kmeans(annotation_dims, centroids, eps, anchor_file)
+        kmeans(annotation_dims, centroids, eps, anchor_file, num_clusters)
         print("centroids.shape", centroids.shape)
 
 
-if __name__ == "__main__":
-    main(sys.argv)
+from sklearn.cluster import KMeans
+
+
+def compute_anchors(
+    ann_path: Path,
+    output_dir: Path,
+    num_clusters: Union[int, List[int]] = [1, 12],
+    stop_at_iou: float = None,
+):
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    annotation_dims = []
+    # size = np.zeros((1, 1, 3))
+    coco = COCO(ann_path)
+    for ann in coco.dataset["annotations"]:
+        annotation_dims.append(tuple(map(float, (ann["bbox"][2], ann["bbox"][3]))))
+    annotation_dims = np.array(annotation_dims)
+    eps = 0.005
+
+    if isinstance(num_clusters, list):
+        for _num_clusters in range(num_clusters[0], num_clusters[1]):
+            print("")
+            print("kmeans clustering, k = ", _num_clusters)
+            kmeans = KMeans(n_clusters=_num_clusters, random_state=0).fit(annotation_dims)
+            sorted_indices = np.argsort(kmeans.cluster_centers_[:, 1])
+            clusters = kmeans.cluster_centers_[sorted_indices]
+            iou = avg_IOU(annotation_dims, clusters)
+            print("Labels: ", kmeans.labels_)
+            print("Clusters: ", clusters)
+            print("h/w ratios: ", clusters[:, 1] / clusters[:, 0])
+            print("Avg. IoU: ", iou)
+            if stop_at_iou and iou >= stop_at_iou:
+                print(f"Desired IoU {stop_at_iou} reached, ending loop early at k={_num_clusters}")
+                break
+    else:
+        kmeans = KMeans(n_clusters=2, random_state=0).fit(annotation_dims)
+        print(kmeans.labels_)
+        print(kmeans.cluster_centers_)
