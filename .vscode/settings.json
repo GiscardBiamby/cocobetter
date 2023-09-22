@@ -8,7 +8,7 @@
         "source.fixAll.shellcheck": true,
         "source.organizeImports": true
     },
-    "editor.cursorSmoothCaretAnimation": true,
+    "editor.cursorSmoothCaretAnimation": "on",
     "editor.formatOnSave": true,
     "editor.renderControlCharacters": true,
     "editor.renderWhitespace": "all",

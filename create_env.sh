@@ -1,26 +1,35 @@
 #!/bin/bash
+set -e
 
-# If you don't use anaconda or miniconda you can replace the relevant environment creation and
-# activation lines with pyenv or whatever system you use to manage python environments.
+# Get the directory of this script so that we can reference paths correctly no matter which folder
+# the script was launched from:
+SCRIPTS_DIR="$(builtin cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJ_ROOT="$(realpath "${SCRIPTS_DIR}")"
+echo "SCRIPTS_DIR: ${SCRIPTS_DIR}"
+echo "PROJ_ROOT: ${PROJ_ROOT}"
+source "${PROJ_ROOT}/manifest"
 
-# shellcheck source=/home/gbiamby/anaconda3/etc/profile.d/conda.sh
-source ~/anaconda3/etc/profile.d/conda.sh
-# shellcheck source=../manifest
-source "manifest"
+# If you don't use anaconda  you can replace the relevant environment creation and activation lines
+# with pyenv or whatever system you use to manage python environments.
+# source ~/anaconda3/etc/profile.d/conda.sh
+source ~/mambaforge/etc/profile.d/conda.sh
+source ~/mambaforge/etc/profile.d/mamba.sh
 
 ENV_NAME=$PYTHON_ENV_NAME
 echo "ENV_NAME: ${ENV_NAME}"
 
 ## Remove env if exists:
-conda deactivate && conda env remove --name "${ENV_NAME}"
-rm -rf "/home/${USER}/anaconda3/envs/${ENV_NAME}"
+mamba deactivate && mamba env remove --name "${ENV_NAME}"
+rm -rf "${HOME}/mambaforge/envs/${ENV_NAME}"
 
 # Create env:
-conda create --name "${ENV_NAME}" python=="${PYTHON_VERSION}" -y
+mamba create --name "${ENV_NAME}" python=="${PYTHON_VERSION}" \
+    cython setuptools==68.0.0 pip wheel ninja -y \
+    -c pytorch -c nvidia -c conda-forge -c defaults
 
-conda activate "${ENV_NAME}"
+mamba activate "${ENV_NAME}"
 echo "Current environment: "
-conda info --envs | grep "*"
+mamba info --envs | grep "*"
 
 ##
 ## Base dependencies

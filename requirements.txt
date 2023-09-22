@@ -5,26 +5,32 @@ pybind11
 scikit-image
 setuptools
 tqdm
+jsons
+pysimdjson
+
 
 
 # # For linting / code auto-formatting inside vscode (or other IDE). Should be fine to leave in, these
 # # are small dependencies, but also fine to remove when submiting an analytic:
-black
-flake8
-isort #==4.3.21 # Version works with nbextensions.
+black>=19.3
+#flake8
+isort
+#isort==4.3.21 # Version works with nbextensions.
+ruff
 
-# For notebooks / plotting (don't need when submitting analytic, but could also leave them in):
+# For notebooks / plotting:
 ipython
-jupyter_contrib_nbextensions
+git+https://github.com/ipython-contrib/jupyter_contrib_nbextensions.git
 jupyterlab
 matplotlib
-nb-black
-nbconvert==5.6.1
+# nb-black
+nbconvert
 nbformat
 numpy
 pandas
 pandas-read-xml
 pandoc
+polars
 seaborn
 jupyterlab_code_formatter
 jupyterlab-lsp
