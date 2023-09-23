@@ -1,6 +1,6 @@
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Union
 
 from ..coco import COCO
 from .utils import save_json
@@ -15,9 +15,9 @@ class CocoJsonBuilder(object):
 
     def __init__(
         self,
-        categories: List[Dict[str, object]],
-        subset_cat_ids: List[int] = [],
-        dest_path="",
+        categories: dict[int, Any],
+        subset_cat_ids: list[int] = [],
+        dest_path: Union[str, Path] = "",
         dest_name="",
         keep_empty_images=True,
     ):
@@ -41,7 +41,9 @@ class CocoJsonBuilder(object):
         if dest_path:
             if isinstance(dest_path, str):
                 dest_path = Path(dest_path)
-            assert dest_path.is_dir(), "dest_path should be a directory: " + str(dest_path)
+            assert dest_path.is_dir(), "dest_path should be a directory: " + str(
+                dest_path
+            )
         self.categories = categories
         self.subset_cat_ids = subset_cat_ids
         self.new_categories = []
@@ -59,14 +61,14 @@ class CocoJsonBuilder(object):
         self.dest_path = Path(dest_path)
         self.dest_name = dest_name
         self.images = []
-        self.annotations: List[Dict[str, Any]] = []
+        self.annotations: list[dict[str, Any]] = []
         dest_path.mkdir(parents=True, exist_ok=True)
         # assert self.dest_path.exists(), f"dest_path: '{self.dest_path}' does not exist"
         # assert (
         #     self.dest_path.is_dir()
         # ), f"dest_path: '{self.dest_path}' is not a directory"
 
-    def generate_info(self) -> Dict[str, str]:
+    def generate_info(self) -> dict[str, str]:
         """
         Returns: A dictionary of descriptive info about the dataset.
         """
@@ -80,7 +82,7 @@ class CocoJsonBuilder(object):
         }
         return info_json
 
-    def generate_licenses(self) -> List[Dict[str, Any]]:
+    def generate_licenses(self) -> list[dict[str, Any]]:
         """Returns the json hash for the licensing info."""
         return [
             {
@@ -90,7 +92,7 @@ class CocoJsonBuilder(object):
             }
         ]
 
-    def add_image(self, img: Dict[str, Any], annotations: List[Dict]) -> None:
+    def add_image(self, img: dict[str, Any], annotations: list[dict]) -> None:
         """
         Add an image and it's annotations to the coco json.
 
@@ -132,7 +134,7 @@ class CocoJsonBuilder(object):
             for ann in temp_anns:
                 self.annotations.append(ann)
 
-    def get_json(self) -> Dict[str, object]:
+    def get_json(self) -> dict[str, object]:
         """Returns the full json for this instance of coco json builder."""
         root_json = {}
         if self.new_categories:
@@ -183,10 +185,14 @@ class COCOShrinker:
         # Create subset
         assert target_filename, "'target_filename' argument must not be empty"
         dest_path: Path = self.base_path / target_filename
-        print(f"Creating subset of {self.dataset_path}, of size: {size}, at: {dest_path}")
+        print(
+            f"Creating subset of {self.dataset_path}, of size: {size}, at: {dest_path}"
+        )
         coco = COCO(self.dataset_path)
         builder = CocoJsonBuilder(
-            coco.dataset["categories"], dest_path=dest_path.parent, dest_name=dest_path.name
+            coco.dataset["categories"],
+            dest_path=dest_path.parent,
+            dest_name=dest_path.name,
         )
         subset_img_ids = coco.getImgIds()[:size]
         for img_id in subset_img_ids:
