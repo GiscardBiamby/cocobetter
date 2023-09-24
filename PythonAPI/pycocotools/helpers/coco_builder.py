@@ -1,8 +1,8 @@
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Counter, Optional, Union
 
-from ..coco import COCO
+from ..coco import COCO, Ann, Cat, Image, Ref
 from .utils import save_json
 
 __all__ = ["CocoJsonBuilder", "COCOShrinker"]
@@ -15,11 +15,13 @@ class CocoJsonBuilder(object):
 
     def __init__(
         self,
-        categories: dict[int, Any],
+        categories: list[Cat],
         subset_cat_ids: list[int] = [],
         dest_path: Union[str, Path] = "",
         dest_name="",
         keep_empty_images=True,
+        is_refer_seg: bool = False,
+        source_coco: COCO = None
     ):
         """
         Args:
@@ -60,9 +62,19 @@ class CocoJsonBuilder(object):
         self.keep_empty_images = keep_empty_images
         self.dest_path = Path(dest_path)
         self.dest_name = dest_name
-        self.images = []
-        self.annotations: list[dict[str, Any]] = []
+        self.images: list[Image] = []
+        self.annotations: list[Ann] = []
+        self.is_refer_seg = is_refer_seg
+        self.refs: list[Ref] = []
+        self.max_ann_id = -1
+        self.max_ref_id = -1
         dest_path.mkdir(parents=True, exist_ok=True)
+        self.source_coco = source_coco
+        if self.source_coco:
+            print(self.source_coco.dataset["info"])
+            print(self.source_coco.dataset["licenses"])
+        else:
+            print("NO SOURCE COCO")
         # assert self.dest_path.exists(), f"dest_path: '{self.dest_path}' does not exist"
         # assert (
         #     self.dest_path.is_dir()
@@ -72,27 +84,39 @@ class CocoJsonBuilder(object):
         """
         Returns: A dictionary of descriptive info about the dataset.
         """
+        if self.source_coco:
+            print(self.source_coco.dataset["info"])
+            print(self.source_coco.dataset["licenses"])
+        else:
+            print("NO SOURCE COCO")
         info_json = {
-            "description": "XView Dataset",
-            "url": "http://xviewdataset.org/",
+            "description": "Some Dataset",
+            "url": "http://somedataset.org/",
             "version": "1.0",
-            "year": 2018,
-            "contributor": "Defense Innovation Unit Experimental (DIUx)",
-            "date_created": "2018/02/22",
-        }
+            "year": 2013,
+            "contributor": "[Contributor]",
+            "date_created": "2023/01/01",
+        } if not self.source_coco else self.source_coco.dataset["info"]
         return info_json
 
     def generate_licenses(self) -> list[dict[str, Any]]:
         """Returns the json hash for the licensing info."""
+        if self.source_coco:
+            print(self.source_coco.dataset["info"])
+            print(self.source_coco.dataset["licenses"])
+        else:
+            print("NO SOURCE COCO")
         return [
             {
                 "url": "http://creativecommons.org/licenses/by-nc-sa/4.0/",
                 "id": 1,
                 "name": "Attribution-NonCommercial-ShareAlike License",
             }
-        ]
+        ] if not self.source_coco else self.source_coco.dataset["licenses"]
 
-    def add_image(self, img: dict[str, Any], annotations: list[dict]) -> None:
+    def add_image(
+        self, img: Image, annotations: list[Ann], refs: Optional[list[Ref]] = []
+    ) -> None:
         """
         Add an image and it's annotations to the coco json.
 
@@ -110,29 +134,54 @@ class CocoJsonBuilder(object):
 
         Returns: None
         """
-        temp_anns = []
-        for ann in annotations:
-            # if builder was initialized with subset_cat_ids, only the corresponding annotations are
-            # re-indexed and added
-            if self.subset_cat_ids:
-                if ann["category_id"] in self.subset_cat_ids:
-                    new_ann = deepcopy(ann)
-                    new_ann["category_id"] = self.reindex_cat_id[ann["category_id"]]
-                    temp_anns.append(new_ann)
-            else:
-                temp_anns.append(ann)
-
-        if self.subset_cat_ids:
-            if temp_anns or self.keep_empty_images:
-                self.images.append(img)
-                for ann in temp_anns:
-                    self.annotations.append(ann)
-            else:
-                pass  # no image added
-        else:
+        img = deepcopy(img)
+        if self.keep_empty_images and not (annotations):
             self.images.append(img)
-            for ann in temp_anns:
-                self.annotations.append(ann)
+            for ann in annotations:
+                self._add_ann(ann)
+        elif annotations:
+            self.images.append(img)
+            for ann in annotations:
+                self._add_ann(ann)
+
+    def _add_ann(self, ann: Ann) -> None:
+        if not self.subset_cat_ids:
+            new_ann = deepcopy(ann)
+            self.annotations.append(new_ann)
+        elif self.subset_cat_ids and ann["category_id"] in self.subset_cat_ids:
+            new_ann = deepcopy(ann)
+            new_ann["category_id"] = self.reindex_cat_id[ann["category_id"]]
+            self.annotations.append(new_ann)
+
+    def _add_ref(self, ref: Ref) -> None:
+        assert self.is_refer_seg, "Operation only valid for refer_seg datasets."
+        if not self.subset_cat_ids:
+            new_ref = deepcopy(ref)
+            self.refs.append(new_ref)
+        elif self.subset_cat_ids and ref["category_id"] in self.subset_cat_ids:
+            new_ref = deepcopy(ref)
+            new_ref["category_id"] = self.reindex_cat_id[ref["category_id"]]
+            self.refs.append(new_ref)
+
+    def _reindex(self) -> None:
+        "Set ann_id's and ref_id's"
+        # Ensure existing id's are unique:
+        ann_id_counts = Counter([ann["id"] for ann in self.annotations])
+        for ann_id, ann_id_count in ann_id_counts.items():
+            if ann_id >= 0:
+                assert ann_id_count == 1, f"Duplicate anns for ann_id: {ann_id}"
+
+        max_ann_id = max(list(ann_id_counts.keys()))
+        for ann in self.annotations:
+            if ann["id"] < 0:
+                max_ann_id += 1
+                ann["id"] = max_ann_id
+
+        total_anns = len(self.annotations)
+        total_ann_ids = len({a['id'] for a in self.annotations})
+        print(f"Total anns:{total_anns}")
+        print(f"ann_ids: {total_ann_ids}")
+        assert total_anns == total_ann_ids, f"{total_anns} != {total_ann_ids}"
 
     def get_json(self) -> dict[str, object]:
         """Returns the full json for this instance of coco json builder."""
@@ -147,15 +196,17 @@ class CocoJsonBuilder(object):
         root_json["annotations"] = self.annotations
         return root_json
 
-    def save(self) -> None:
+    def save(self) -> Path:
         """Saves the json to the dest_path/dest_name location."""
-        file_path = self.dest_path / self.dest_name
+        self._reindex()
+        file_path = (self.dest_path / self.dest_name).absolute()
         dataset = self.get_json()
         print(
             f"Writing coco_builder (num_img: { len(dataset['images']) }, "
             f"num_ann: { len(dataset['annotations']) }) output to: '{file_path}'"
         )
         save_json(file_path, data=dataset)
+        return file_path
 
 
 class COCOShrinker:
@@ -193,6 +244,7 @@ class COCOShrinker:
             coco.dataset["categories"],
             dest_path=dest_path.parent,
             dest_name=dest_path.name,
+            source_coco=coco,
         )
         subset_img_ids = coco.getImgIds()[:size]
         for img_id in subset_img_ids:

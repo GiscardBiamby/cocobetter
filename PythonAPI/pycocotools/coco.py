@@ -64,7 +64,13 @@ from matplotlib.patches import Polygon, Rectangle
 
 from . import mask as maskUtils
 
-__all__ = ["COCO"]
+__all__ = ["COCO", "Ann", "Cat", "Image", "Ref"]
+
+# Typing aliases
+Ann = dict[str, Any]
+Cat = dict[str, Any]
+Image = dict[str, Any]
+Ref = dict[str, Any]
 
 
 def _isArrayLike(obj):
@@ -139,9 +145,10 @@ class COCO:
         # create index
         print("creating index...")
         anns, cats, imgs = {}, {}, {}
-        name_to_cat: dict[str, dict] = {}
-        imgToAnns: dict = defaultdict(list)
-        catToImgs: dict = defaultdict(list)
+        name_to_cat: dict[str, Cat] = {}
+        imgToAnns: dict[int, list[Ann]] = defaultdict(list)
+        catToImgs: dict[int, list[Image]] = defaultdict(list)
+
         if "annotations" in self.dataset:
             for ann in self.dataset["annotations"]:
                 imgToAnns[ann["image_id"]].append(ann)
@@ -161,11 +168,11 @@ class COCO:
                 catToImgs[ann["category_id"]].append(ann["image_id"])
 
         # create class members
-        self.anns = anns
+        self.anns: dict[int, Ann] = anns
         self.imgToAnns = imgToAnns
         self.catToImgs = catToImgs
-        self.imgs = imgs
-        self.cats = cats
+        self.imgs: dict[int, Image] = imgs
+        self.cats: dict[int, Cat] = cats
         self.name_to_cat = name_to_cat
         if self.is_ref_dataset:
             self.create_index_refs()
@@ -176,14 +183,14 @@ class COCO:
         Similar to create_index(), but handles just the refs data (i.e., refering
         expressions data).
         """
-        self.refs: dict[int, dict[str, Any]] = {}
-        self.img_to_refs: dict[int, list[dict[str, Any]]] = defaultdict(list)
-        self.cat_to_refs: dict[int, list[dict[str, Any]]] = defaultdict(list)
-        self.ann_to_ref: dict[int, dict[str, Any]] = {}
-        self.ref_to_ann: dict[int, dict[str, Any]] = {}
+        self.refs: dict[int, Ref] = {}
+        self.img_to_refs: dict[int, list[Ref]] = defaultdict(list)
+        self.cat_to_refs: dict[int, list[Ref]] = defaultdict(list)
+        self.ann_to_ref: dict[int, Ref] = {}
+        self.ref_to_ann: dict[int, Ann] = {}
         # Sentences:
         self.sents: dict[int, dict[str, Any]] = {}
-        self.sent_to_ref: dict[int, dict[str, Any]] = {}
+        self.sent_to_ref: dict[int, Ref] = {}
         self.sent_to_tokens: dict[int, list[str]] = {}
 
         for ref in self.refs_data:
@@ -213,7 +220,7 @@ class COCO:
         ref_file = self.DATA_DIR / f"refs({self.split_by}).p"
         assert ref_file.exists(), str(ref_file)
         print(f"Loading refs from '{ref_file}'")
-        self.refs_data: list[dict[str, Any]] = pickle.load(open(ref_file, "rb"))
+        self.refs_data: list[Ref] = pickle.load(open(ref_file, "rb"))
 
     def info(self):
         """
@@ -223,7 +230,7 @@ class COCO:
         for key, value in self.dataset["info"].items():
             print("{}: {}".format(key, value))
 
-    def getRefIds(self, image_ids=[], cat_ids=[], ref_ids=[], split=""):
+    def getRefIds(self, image_ids=[], cat_ids=[], ref_ids=[], split="") -> list[int]:
         assert (
             self.is_ref_dataset
         ), "Can only use getRefIds if self.is_ref_dataset==True"
@@ -265,7 +272,9 @@ class COCO:
         ref_ids = [ref["ref_id"] for ref in refs]
         return ref_ids
 
-    def getAnnIds(self, imgIds=[], catIds=[], areaRng=[], iscrowd=None, refIds=[]):
+    def getAnnIds(
+        self, imgIds=[], catIds=[], areaRng=[], iscrowd=None, refIds=[]
+    ) -> list[int]:
         """
         Get ann ids that satisfy given filter conditions. default skips that filter
         :param imgIds  (int array)     : get anns for given imgs
@@ -316,7 +325,7 @@ class COCO:
             ids = [ann["id"] for ann in anns]
         return ids
 
-    def getCatIds(self, catNms=[], supNms=[], catIds=[]):
+    def getCatIds(self, catNms=[], supNms=[], catIds=[]) -> list[int]:
         """
         filtering parameters. default skips that filter.
         :param catNms (str array)  : get cats for given cat names
@@ -350,7 +359,7 @@ class COCO:
         ids = [cat["id"] for cat in cats]
         return ids
 
-    def getImgIds(self, imgIds=[], catIds=[], refIds=[]):
+    def getImgIds(self, imgIds=[], catIds=[], refIds=[]) -> list[int]:
         """
         Get img ids that satisfy given filter conditions.
         :param imgIds (int array) : get imgs for given ids
@@ -379,7 +388,7 @@ class COCO:
                 ids = ids.intersection(ref_imgs) if ids else ref_imgs
         return list(ids)
 
-    def loadAnns(self, ids=[]):
+    def loadAnns(self, ids=[]) -> list[Ann]:
         """
         Load anns with the specified ids.
         :param ids (int array)       : integer ids specifying anns
@@ -389,8 +398,10 @@ class COCO:
             return [self.anns[id] for id in ids]
         elif type(ids) == int:
             return [self.anns[ids]]
+        else:
+            raise NotImplementedError()
 
-    def loadCats(self, ids=[]) -> List[Dict[str, Any]]:
+    def loadCats(self, ids=[]) -> list[Cat]:
         """
         Load cats with the specified ids.
         :param ids (int array)       : integer ids specifying cats
@@ -402,7 +413,7 @@ class COCO:
             return [self.cats[ids]]
         return []
 
-    def loadImgs(self, ids=[]):
+    def loadImgs(self, ids=[]) -> list[Image]:
         """
         Load anns with the specified ids.
         :param ids (int array)       : integer ids specifying img
@@ -412,18 +423,20 @@ class COCO:
             return [self.imgs[id] for id in ids]
         elif type(ids) == int:
             return [self.imgs[ids]]
+        raise NotImplementedError()
 
-    def loadRefs(self, ref_ids=[]):
+    def loadRefs(self, ref_ids=[]) -> list[Ref]:
         """Returns ref objects (dicts) for the given ref_ids."""
         assert self.is_ref_dataset, "loadRefs() is only valid if is_ref_dataset==True"
         if _isArrayLike(ref_ids):
             return [self.refs[ref_id] for ref_id in ref_ids]
         elif isinstance(ref_ids, int):
             return [self.refs[ref_ids]]
+        raise NotImplementedError()
 
-    def getRefBox(self, ref_id):
+    def getRefBox(self, ref_id) -> list[int]:
         assert self.is_ref_dataset, "getRefBox() is only valid if is_ref_dataset==True"
-        ref = self.refs[ref_id]
+        # ref = self.refs[ref_id]
         ann = self.ref_to_ann[ref_id]
         return ann["bbox"]  # [x, y, w, h]
 
