@@ -70,11 +70,6 @@ class CocoJsonBuilder(object):
         self.max_ref_id = -1
         dest_path.mkdir(parents=True, exist_ok=True)
         self.source_coco = source_coco
-        if self.source_coco:
-            print(self.source_coco.dataset["info"])
-            print(self.source_coco.dataset["licenses"])
-        else:
-            print("NO SOURCE COCO")
         # assert self.dest_path.exists(), f"dest_path: '{self.dest_path}' does not exist"
         # assert (
         #     self.dest_path.is_dir()
@@ -84,11 +79,6 @@ class CocoJsonBuilder(object):
         """
         Returns: A dictionary of descriptive info about the dataset.
         """
-        if self.source_coco:
-            print(self.source_coco.dataset["info"])
-            print(self.source_coco.dataset["licenses"])
-        else:
-            print("NO SOURCE COCO")
         info_json = {
             "description": "Some Dataset",
             "url": "http://somedataset.org/",
@@ -101,11 +91,6 @@ class CocoJsonBuilder(object):
 
     def generate_licenses(self) -> list[dict[str, Any]]:
         """Returns the json hash for the licensing info."""
-        if self.source_coco:
-            print(self.source_coco.dataset["info"])
-            print(self.source_coco.dataset["licenses"])
-        else:
-            print("NO SOURCE COCO")
         return [
             {
                 "url": "http://creativecommons.org/licenses/by-nc-sa/4.0/",
