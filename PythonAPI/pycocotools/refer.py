@@ -37,6 +37,7 @@ import numpy as np
 import skimage.io as io
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon, Rectangle
+
 from pycocotools import mask
 
 
@@ -197,7 +198,7 @@ class REFER:
                 anns = [ann for ann in anns if ann["category_id"] in cat_ids]
             ann_ids = [ann["id"] for ann in anns]
             if not len(ref_ids) == 0:
-                ids = set(ann_ids).intersection(
+                set(ann_ids).intersection(
                     set([self.Refs[ref_id]["ann_id"] for ref_id in ref_ids])
                 )
         return ann_ids
@@ -239,7 +240,7 @@ class REFER:
             return [self.Cats[cat_ids]]
 
     def getRefBox(self, ref_id):
-        ref = self.Refs[ref_id]
+        self.Refs[ref_id]
         ann = self.refToAnn[ref_id]
         return ann["bbox"]  # [x, y, w, h]
 

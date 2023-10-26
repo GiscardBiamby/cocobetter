@@ -4,7 +4,7 @@ Customized version of pycocotools. Should be a drop-in replacement for the offic
 
 ## What's different from the official?
 
-* Provides support for custom max_dets settings
+* Provides support for custom `max_dets` settings
 * Adds metrics AP and AR at IoU threshold of 25% (official version does AP50, AP75, and AP)
 * Various helper classes for building, converting, shrinking, inspecting, etc, COCO formated data.
 
@@ -38,8 +38,13 @@ Use this method if you don't need to customize the code, and just want to instal
 
 ```bash
 conda activate "YOUR_ENV_NAME"
-python -m pip install \
-    git+https://github.com/GiscardBiamby/cocobetter.git#egg=pycocotools\&subdirectory=PythonAPI
+python -m pip install git+https://github.com/GiscardBiamby/cocobetter.git#subdirectory=PythonAPI
+```
+
+`requirements.txt` method:
+
+```text
+pycocotools @ git+https://github.com/GiscardBiamby/cocobetter.git#subdirectory=PythonAPI
 ```
 
 ### Quick Install (Editable)
@@ -49,7 +54,7 @@ This will pull the repo into your local folder under `./src`, and install it int
 ```bash
 conda activate "YOUR_ENV_NAME"
 python -m pip install -e \
-    git+https://github.com/GiscardBiamby/cocobetter.git#egg=pycocotools\&subdirectory=PythonAPI
+    pycocotools @ git+https://github.com/GiscardBiamby/cocobetter.git#subdirectory=PythonAPI
 ```
 
 OR, add this line to your `requirements.txt`:
