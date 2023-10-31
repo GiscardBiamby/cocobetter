@@ -25,7 +25,10 @@ showMask   - show mask of the referred object given ref
 """
 
 import itertools
-import json
+try:
+    import simdjson as json
+except:  # noqa: E722
+    import json
 import os.path as osp
 import pickle
 import sys

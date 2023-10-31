@@ -15,14 +15,14 @@ class CocoClassDistHelper(COCO):
     A subclass of pycocotools.coco that adds a method(s) to calculate class distribution.
     """
 
-    def __init__(self, annotation_file: Optional[Union[str, Path]] = None):
-        super().__init__(annotation_file)
+    def __init__(self, annotation_file: Optional[Union[str, Path]] = None, **kwargs):
+        super().__init__(annotation_file, **kwargs)
 
-        self.cats = self.loadCats(self.getCatIds())
+        self.cats_list = self.loadCats(self.getCatIds())
         """list of dictionaries. 3 keys each: (supercategory, id, name)"""
-        list.sort(self.cats, key=lambda c: c["id"])
+        list.sort(self.cats_list, key=lambda c: c["id"])
 
-        self.cat_name_lookup = {c["id"]: c["name"] for c in self.cats}
+        self.cat_name_lookup = {c["id"]: c["name"] for c in self.cats_list}
         """Dictionaries to lookup category and supercategory names from category id"""
 
         self.img_ids = self.getImgIds()
@@ -41,15 +41,15 @@ class CocoClassDistHelper(COCO):
         #  category/class there are for that img_id
         self.img_ann_counts = {}
         for img_id in self.imgToAnns.keys():
-            imgAnnCounter = Counter({cat["name"]: 0 for cat in self.cats})
+            imgAnnCounter = Counter({cat["name"]: 0 for cat in self.cats_list})
             anns = self.imgToAnns[img_id]
             for ann in anns:
                 imgAnnCounter[self.cat_name_lookup[ann["category_id"]]] += 1
             self.img_ann_counts[img_id] = imgAnnCounter
-        self.num_cats = len(self.cats)
+        self.num_cats = len(self.cats_list)
 
         self.cat_img_counts: Dict[int, float] = {
-            c["id"]: float(len(np.unique(self.catToImgs[c["id"]]))) for c in self.cats
+            c["id"]: float(len(np.unique(self.catToImgs[c["id"]]))) for c in self.cats_list
         }
 
         # Annotation Counts
@@ -66,7 +66,7 @@ class CocoClassDistHelper(COCO):
                 "img_count": float(len(np.unique(self.catToImgs[c["id"]]))),
                 "ann_count": float(self.cat_ann_counts[c["id"]]),
             }
-            for c in self.cats
+            for c in self.cats_list
         }
 
         self.cat_img_counts = OrderedDict(sorted(self.cat_img_counts.items()))
@@ -81,9 +81,9 @@ class CocoClassDistHelper(COCO):
         Returns: A dictionary representing the class distribution. Keys are category
             names Values are counts (e.g., how many annotations are there with that category/class
             label) np.array of class percentages. Entries are sorted by category_id (same as
-            self.cats)
+            self.cats_list)
         """
-        cat_counter = Counter({cat["name"]: 0 for cat in self.cats})
+        cat_counter = Counter({cat["name"]: 0 for cat in self.cats_list})
         if img_ids is None:
             img_ids = self.imgToAnns.keys()
 
@@ -94,7 +94,7 @@ class CocoClassDistHelper(COCO):
 
         # Convert to np array where entries correspond to cat_id's sorted asc.:
         total = float(sum(cat_counter.values()))
-        cat_names = [c["name"] for c in self.cats]
+        cat_names = [c["name"] for c in self.cats_list]
         cat_percents = np.zeros((self.num_cats))
         for idx, cat_name in enumerate(sorted(cat_names)):
             cat_percents[idx] = cat_counter[cat_name] / total
@@ -121,3 +121,74 @@ class CocoClassDistHelper(COCO):
         for that class
         """
         return self.cat_ann_counts
+
+    def get_ref_stats(self, L: int = 3):
+        sentence_counts = Counter()
+        counts = []
+
+        for idx, ref in enumerate(self.refs_data):
+            sentences: list[dict] = ref["sentences"]
+            count = len(sentences)
+            sentence_counts.update({count: 1})
+            counts.append(
+                {
+                    "ref_id": ref["ref_id"],
+                    "ann_id": ref["ann_id"],
+                    "category_id": ref["category_id"],
+                    "category": self.cats[ref["category_id"]]["name"],
+                    "supercategory": self.cats[ref["category_id"]]["supercategory"]
+                    if "supercategory" in self.cats[ref["category_id"]]
+                    else str(self.cats[ref["category_id"]]),
+                    "sent_count": len(sentences),
+                    "pos_sent_count": len(
+                        [
+                            s
+                            for s in sentences
+                            if ("exist" in s and s["exist"]) or "exist" not in s
+                        ]
+                    ),
+                    "neg_sent_count": len(
+                        [s for s in sentences if ("exist" in s and not s["exist"])]
+                    ),
+                }
+            )
+
+        # print(sentence_counts, len(sentence_counts))
+        df = pd.DataFrame(counts)
+        # display(df)
+        print(
+            "pos/neg sentence_counts: ",
+            df.pos_sent_count.sum(),
+            df.neg_sent_count.sum(),
+        )
+        df_agg = pd.DataFrame(
+            df.groupby(lambda x: True).agg(
+                num_refs=("ref_id", "count"),
+                sent_count=("sent_count", "sum"),
+                total_pos_sents=("pos_sent_count", "sum"),
+                total_neg_sents=("neg_sent_count", "sum"),
+            )
+        )
+        # display(df_agg)
+        if L >= 1:
+            df_agg = pd.DataFrame(
+                df.groupby(["pos_sent_count"]).agg(
+                    num_refs=("ref_id", "count"),
+                    sent_count=("sent_count", "sum"),
+                    total_pos_sents=("pos_sent_count", "sum"),
+                    total_neg_sents=("neg_sent_count", "sum"),
+                )
+            )
+            # display(df_agg)
+        if L >= 2:
+            df_agg = pd.DataFrame(
+                df.groupby(["pos_sent_count", "neg_sent_count"]).agg(
+                    num_refs=("ref_id", "count"),
+                    sent_count=("sent_count", "sum"),
+                    total_pos_sents=("pos_sent_count", "sum"),
+                    total_neg_sents=("neg_sent_count", "sum"),
+                )
+            )
+            # display(df_agg)
+        # display(df_agg.droplevel(axis=0, level=0).reset_index(drop=True))
+        return df, df_agg.reset_index()

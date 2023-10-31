@@ -27,7 +27,7 @@ matplotlib
 nbconvert
 nbformat
 numpy
-pandas
+pandas[performance,plot,output-formatting]
 pandas-read-xml
 pandoc
 polars

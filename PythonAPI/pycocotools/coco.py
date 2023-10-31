@@ -46,7 +46,11 @@ __version__ = "2.0"
 
 import copy
 import itertools
-import json
+
+try:
+    import simdjson as json
+except:  # noqa: E722
+    import json
 import os
 import pickle
 import sys
@@ -82,24 +86,45 @@ class COCO:
         self,
         annotation_file: Optional[Union[str, Path]] = None,
         is_ref_dataset: bool = False,
-        splitBy: str = "unc",
+        split_by: str = "unc",
         dataset_name: str = "",
     ):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
-        :param annotation_file (str): location of annotation file
+
+        :param annotation_file (str): location of annotation file. If this is a referring
+            segmentation (ref_seg) dataset, this should be the path containing subdirectories, where
+            the subdirectories are named after each ref_seg dataset.
         :param image_folder (str): location to the folder that hosts images.
-        :return:
+        :param is_ref_dataset: Default is False. Set to True if this is a referring segmentation
+            (ref_seg) dataset, such as refcoco, refcoco+, refcocog, or one of the Robust refcoco
+            (R-refcoco) variants.
+        :param split_by: Only used if is_ref_dataset=True. Indicates which refs `.p` file to load,
+            e.g., 'refs(split_by).p`
+        :param dataset_name: Only used if is_ref_dataset=True. The name of the subdirectory within
+            the `annotation_file` directory. Also used to load the correct images (an example of why
+            this is needed is the image folder structure is different for refclef than the others)
+
+        Example:
+
+        >>> coco = COCO(
+        >>>    refseg_path / dataset_name / "instances.json",
+        >>>    is_ref_dataset=True,
+        >>>    dataset_name="refcoco+",
+        >>>    split_by="unc",
+        >>> )
         """
         # load dataset
         self.dataset, self.anns, self.cats, self.imgs = dict(), dict(), dict(), dict()
         self.imgToAnns, self.catToImgs = defaultdict(list), defaultdict(list)
-        self.is_ref_dataset: bool = is_ref_dataset and len(splitBy) > 0
-        self.split_by: str = splitBy
+        self.is_ref_dataset: bool = is_ref_dataset and len(split_by) > 0
+        self.split_by: str = split_by
         self.dataset_name: str = dataset_name
 
-        if isinstance(annotation_file, str):
-            annotation_file = Path(annotation_file)
+        if annotation_file is None:
+            return
+        else:
+            _annotation_file = Path(annotation_file).resolve()
 
         if self.is_ref_dataset:
             assert (
@@ -107,17 +132,19 @@ class COCO:
             ), "You must specify a dataset_name if is_ref_datset==True"
             # You can either pass in the path to the intsances.json, or the folder that
             # contains refcoco/refcocog/refcoco+/refclef folders.
-            if annotation_file.is_dir():
-                self.DATA_ROOT = annotation_file
+            if _annotation_file.is_dir():
+                self.DATA_ROOT = _annotation_file
                 self.DATA_DIR = self.DATA_ROOT / self.dataset_name
-                annotation_file = self.DATA_DIR / "instances.json"
+                _annotation_file = self.DATA_DIR / "instances.json"
             else:
-                assert annotation_file.exists() and annotation_file.is_file(), str(
-                    annotation_file
+                assert _annotation_file.exists() and _annotation_file.is_file(), str(
+                    _annotation_file
                 )
-                self.DATA_ROOT = annotation_file.parent.parent
-                self.DATA_DIR = annotation_file.parent
-                assert str(self.DATA_DIR).endswith(self.dataset_name)
+                self.DATA_ROOT = _annotation_file.parent.parent
+                self.DATA_DIR = _annotation_file.parent
+                assert str(self.DATA_DIR).endswith(self.dataset_name), (
+                    str(self.DATA_DIR) + " " + self.dataset_name
+                )
             if "coco" in self.dataset_name:
                 self.IMAGE_DIR = self.DATA_ROOT / "images/mscoco/images/train2014"
             elif "clef" in self.dataset_name:
@@ -130,9 +157,9 @@ class COCO:
 
         if annotation_file is not None:
             print("loading annotations into memory...")
-            annotation_file = annotation_file.resolve()
+            _annotation_file = _annotation_file.resolve()
             tic = time.time()
-            with open(annotation_file, "r") as f:
+            with open(_annotation_file, "r") as f:
                 dataset = json.load(f)
             assert isinstance(
                 dataset, dict
@@ -221,6 +248,7 @@ class COCO:
         assert ref_file.exists(), str(ref_file)
         print(f"Loading refs from '{ref_file}'")
         self.refs_data: list[Ref] = pickle.load(open(ref_file, "rb"))
+        print(f"Loaded {len(self.refs_data)} refs")
 
     def info(self):
         """
