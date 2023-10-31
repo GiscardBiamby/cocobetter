@@ -22,3 +22,4 @@ PythonAPI/*.egg-info
 PythonAPI/build
 PythonAPI/*.csv
 PythonAPI/notebooks/**/output
+**/.virtual_documents
