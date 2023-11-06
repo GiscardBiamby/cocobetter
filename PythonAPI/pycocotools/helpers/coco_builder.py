@@ -231,7 +231,7 @@ class CocoJsonBuilder(object):
         root_json["annotations"] = self.annotations
         return root_json
 
-    def _save_ref_file(self, output_dir: Path, split_by="berkeley") -> None:
+    def _save_ref_file(self, output_dir: Path) -> None:
         assert output_dir.is_dir(), str(output_dir)
         ref_path = output_dir / f"refs({self.split_by}).p"
 

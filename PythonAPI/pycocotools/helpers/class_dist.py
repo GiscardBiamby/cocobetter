@@ -49,7 +49,8 @@ class CocoClassDistHelper(COCO):
         self.num_cats = len(self.cats_list)
 
         self.cat_img_counts: Dict[int, float] = {
-            c["id"]: float(len(np.unique(self.catToImgs[c["id"]]))) for c in self.cats_list
+            c["id"]: float(len(np.unique(self.catToImgs[c["id"]])))
+            for c in self.cats_list
         }
 
         # Annotation Counts
@@ -190,5 +191,11 @@ class CocoClassDistHelper(COCO):
                 )
             )
             # display(df_agg)
+
+        df_agg["dataset"] = f"{self.dataset_name}({self.split_by})"
+        df_agg["ann_count"] = len(self.anns)
+        df_agg["img_count"] = len(self.imgs)
+        # Make 'dataset' the first column:
+        df_agg.insert(0, "dataset", df_agg.pop("dataset"))
         # display(df_agg.droplevel(axis=0, level=0).reset_index(drop=True))
         return df, df_agg.reset_index()
