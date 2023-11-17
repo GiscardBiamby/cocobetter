@@ -7,7 +7,7 @@ import pandas as pd
 
 from ..coco import COCO
 
-__all__ = ["CocoClassDistHelper"]
+__all__ = ["CocoClassDistHelper", "get_ref_stats"]
 
 
 class CocoClassDistHelper(COCO):
@@ -49,8 +49,7 @@ class CocoClassDistHelper(COCO):
         self.num_cats = len(self.cats_list)
 
         self.cat_img_counts: Dict[int, float] = {
-            c["id"]: float(len(np.unique(self.catToImgs[c["id"]])))
-            for c in self.cats_list
+            c["id"]: float(len(np.unique(self.catToImgs[c["id"]]))) for c in self.cats_list
         }
 
         # Annotation Counts
@@ -123,47 +122,53 @@ class CocoClassDistHelper(COCO):
         """
         return self.cat_ann_counts
 
-    def get_ref_stats(self, L: int = 3):
-        sentence_counts = Counter()
-        counts = []
 
-        for idx, ref in enumerate(self.refs_data):
-            sentences: list[dict] = ref["sentences"]
-            count = len(sentences)
-            sentence_counts.update({count: 1})
-            counts.append(
-                {
-                    "ref_id": ref["ref_id"],
-                    "ann_id": ref["ann_id"],
-                    "category_id": ref["category_id"],
-                    "category": self.cats[ref["category_id"]]["name"],
-                    "supercategory": self.cats[ref["category_id"]]["supercategory"]
-                    if "supercategory" in self.cats[ref["category_id"]]
-                    else str(self.cats[ref["category_id"]]),
-                    "sent_count": len(sentences),
-                    "pos_sent_count": len(
-                        [
-                            s
-                            for s in sentences
-                            if ("exist" in s and s["exist"]) or "exist" not in s
-                        ]
-                    ),
-                    "neg_sent_count": len(
-                        [s for s in sentences if ("exist" in s and not s["exist"])]
-                    ),
-                }
-            )
+def get_ref_stats(coco: COCO, L: int = 3) -> tuple[pd.DataFrame, pd.DataFrame]:
+    assert coco.is_ref_dataset, "COCO object must be a referring expression dataset."
+    sentence_counts = Counter()
+    counts = []
 
-        # print(sentence_counts, len(sentence_counts))
-        df = pd.DataFrame(counts)
-        # display(df)
-        print(
-            "pos/neg sentence_counts: ",
-            df.pos_sent_count.sum(),
-            df.neg_sent_count.sum(),
+    for idx, ref in enumerate(coco.refs_data):
+        sentences: list[dict] = ref["sentences"]
+        count = len(sentences)
+        sentence_counts.update({count: 1})
+        counts.append(
+            {
+                "ref_id": ref["ref_id"],
+                "ann_id": ref["ann_id"],
+                "category_id": ref["category_id"],
+                "category": coco.cats[ref["category_id"]]["name"],
+                "supercategory": coco.cats[ref["category_id"]]["supercategory"]
+                if "supercategory" in coco.cats[ref["category_id"]]
+                else str(coco.cats[ref["category_id"]]),
+                "sent_count": len(sentences),
+                "pos_sent_count": len(
+                    [s for s in sentences if ("exist" in s and s["exist"]) or "exist" not in s]
+                ),
+                "neg_sent_count": len([s for s in sentences if ("exist" in s and not s["exist"])]),
+            }
         )
+
+    # print(sentence_counts, len(sentence_counts))
+    df = pd.DataFrame(counts)
+    # display(df)
+    print(
+        "pos/neg sentence_counts: ",
+        df.pos_sent_count.sum(),
+        df.neg_sent_count.sum(),
+    )
+    df_agg = pd.DataFrame(
+        df.groupby(lambda x: True).agg(
+            num_refs=("ref_id", "count"),
+            sent_count=("sent_count", "sum"),
+            total_pos_sents=("pos_sent_count", "sum"),
+            total_neg_sents=("neg_sent_count", "sum"),
+        )
+    )
+    # display(df_agg)
+    if L >= 1:
         df_agg = pd.DataFrame(
-            df.groupby(lambda x: True).agg(
+            df.groupby(["pos_sent_count"]).agg(
                 num_refs=("ref_id", "count"),
                 sent_count=("sent_count", "sum"),
                 total_pos_sents=("pos_sent_count", "sum"),
@@ -171,31 +176,21 @@ class CocoClassDistHelper(COCO):
             )
         )
         # display(df_agg)
-        if L >= 1:
-            df_agg = pd.DataFrame(
-                df.groupby(["pos_sent_count"]).agg(
-                    num_refs=("ref_id", "count"),
-                    sent_count=("sent_count", "sum"),
-                    total_pos_sents=("pos_sent_count", "sum"),
-                    total_neg_sents=("neg_sent_count", "sum"),
-                )
+    if L >= 2:
+        df_agg = pd.DataFrame(
+            df.groupby(["pos_sent_count", "neg_sent_count"]).agg(
+                num_refs=("ref_id", "count"),
+                sent_count=("sent_count", "sum"),
+                total_pos_sents=("pos_sent_count", "sum"),
+                total_neg_sents=("neg_sent_count", "sum"),
             )
-            # display(df_agg)
-        if L >= 2:
-            df_agg = pd.DataFrame(
-                df.groupby(["pos_sent_count", "neg_sent_count"]).agg(
-                    num_refs=("ref_id", "count"),
-                    sent_count=("sent_count", "sum"),
-                    total_pos_sents=("pos_sent_count", "sum"),
-                    total_neg_sents=("neg_sent_count", "sum"),
-                )
-            )
-            # display(df_agg)
+        )
+        # display(df_agg)
 
-        df_agg["dataset"] = f"{self.dataset_name}({self.split_by})"
-        df_agg["ann_count"] = len(self.anns)
-        df_agg["img_count"] = len(self.imgs)
-        # Make 'dataset' the first column:
-        df_agg.insert(0, "dataset", df_agg.pop("dataset"))
-        # display(df_agg.droplevel(axis=0, level=0).reset_index(drop=True))
-        return df, df_agg.reset_index()
+    df_agg["dataset"] = f"{coco.dataset_name}({coco.split_by})"
+    df_agg["ann_count"] = len(coco.anns)
+    df_agg["img_count"] = len(coco.imgs)
+    # Make 'dataset' the first column:
+    df_agg.insert(0, "dataset", df_agg.pop("dataset"))
+    # display(df_agg.droplevel(axis=0, level=0).reset_index(drop=True))
+    return df, df_agg.reset_index()

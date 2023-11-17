@@ -1,4 +1,4 @@
-from .class_dist import CocoClassDistHelper
+from .class_dist import CocoClassDistHelper, get_ref_stats
 from .coco_builder import CocoJsonBuilder, COCOShrinker
 from .comsat import CocoToComsat
 from .reindex import reindex_coco_json
@@ -12,4 +12,5 @@ __all__ = [
     "COCOShrinker",
     "CocoToComsat",
     "reindex_coco_json",
+    "get_ref_stats",
 ]
