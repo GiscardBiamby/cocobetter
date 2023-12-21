@@ -4,9 +4,9 @@
     ],
     "diffEditor.ignoreTrimWhitespace": false,
     "editor.codeActionsOnSave": {
-        "source.fixAll": true,
-        "source.fixAll.shellcheck": true,
-        "source.organizeImports": true
+        "source.fixAll": "explicit",
+        "source.fixAll.shellcheck": "explicit",
+        "source.organizeImports": "explicit"
     },
     "editor.cursorSmoothCaretAnimation": "on",
     "editor.formatOnSave": true,
@@ -21,34 +21,9 @@
         "**/XDG_CACHE_HOME": true,
         "**/__pycache__/**": true
     },
-    "jupyter.allowUnauthorizedRemoteConnection": true,
     "python.analysis.typeCheckingMode": "basic",
     "python.defaultInterpreterPath": "~/anaconda3/envs/coco/bin/python",
     "python.envFile": "${workspaceFolder}/.env",
-    "python.formatting.autopep8Args": [
-        "--global-config=${workspaceFolder}/setup.cfg",
-        "--experimental"
-    ],
-    "python.formatting.blackArgs": [
-        "--line-length",
-        "100"
-    ],
-    "python.formatting.provider": "black",
-    "python.linting.enabled": true,
-    "python.linting.flake8Args": [
-        "--verbose"
-    ],
-    "python.linting.flake8Enabled": true,
-    "python.linting.pylintArgs": [
-        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*"
-    ],
-    "python.linting.pylintEnabled": false,
-    "python.sortImports.path": "isort",
-    // No need to use this becauase the settings in setup.cfg configure isort to be compatible with black:
-    // "python.sortImports.args": [
-    //     "--profile",
-    //     "black",
-    // ],
     "python.testing.pytestEnabled": false,
     "python.testing.unittestEnabled": false,
     "rewrap.wrappingColumn": 100,
@@ -56,12 +31,4 @@
         "--source-path=SCRIPTDIR",
         "--external-sources"
     ],
-    "spellright.documentTypes": [
-        "markdown",
-        "latex",
-        "plaintext"
-    ],
-    "spellright.language": [
-        "en_US"
-    ]
 }
