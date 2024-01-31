@@ -4,9 +4,9 @@
     ],
     "diffEditor.ignoreTrimWhitespace": false,
     "editor.codeActionsOnSave": {
-        "source.fixAll": true,
-        "source.fixAll.shellcheck": true,
-        "source.organizeImports": true
+        "source.fixAll": "explicit",
+        "source.fixAll.shellcheck": "explicit",
+        "source.organizeImports": "explicit"
     },
     "editor.cursorSmoothCaretAnimation": "on",
     "editor.formatOnSave": true,

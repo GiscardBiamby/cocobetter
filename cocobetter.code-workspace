@@ -19,6 +19,7 @@
             "source.organizeImports": "never"
         },
         "peacock.color": "#ff3d00",
+        "peacock.remoteColor": "#ff3d00",
         "workbench.colorCustomizations": {
             "activityBar.activeBackground": "#ff6433",
             "activityBar.background": "#ff6433",
@@ -36,7 +37,13 @@
             "titleBar.activeBackground": "#ff3d00",
             "titleBar.activeForeground": "#e7e7e7",
             "titleBar.inactiveBackground": "#ff3d0099",
-            "titleBar.inactiveForeground": "#e7e7e799"
+            "titleBar.inactiveForeground": "#e7e7e799",
+            "editorGroup.border": "#ff6433",
+            "panel.border": "#ff6433",
+            "sideBar.border": "#ff6433",
+            "statusBar.debuggingBackground": "#00c2ff",
+            "statusBar.debuggingForeground": "#15202b",
+            "tab.activeBorder": "#ff6433"
         }
     }
 }

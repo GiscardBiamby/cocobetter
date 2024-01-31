@@ -39,8 +39,6 @@ pip install -r requirements.txt
 
 # Make the python environment available for running jupyter kernels:
 python -m ipykernel install --user --name="${ENV_NAME}"
-# Install jupyter extensions
-jupyter contrib nbextension install --user
 
 pushd ./PythonAPI || exit
 pip install -e .
