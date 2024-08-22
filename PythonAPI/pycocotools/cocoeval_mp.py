@@ -6,7 +6,6 @@ from collections import defaultdict
 
 import numpy as np
 import torch.multiprocessing as mp
-from mmengine.logging import MMLogger
 from tqdm import tqdm
 
 from pycocotools.cocoeval import COCOeval
@@ -98,7 +97,8 @@ class COCOevalMP(COCOeval):
                 end = len(catIds)
             mp_params.append((catIds[begin:end],))
 
-        MMLogger.get_current_instance().info("start multi processing evaluation ...")
+        # MMLogger.get_current_instance().info("start multi processing evaluation ...")
+        print("start multi processing evaluation ...")
         with mp.Pool(nproc) as pool:
             self.evalImgs = pool.starmap(self._evaluateImg, mp_params)
 
