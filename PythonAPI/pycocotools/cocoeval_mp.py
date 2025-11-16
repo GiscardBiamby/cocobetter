@@ -3,7 +3,6 @@ import copy
 import itertools
 import time
 from collections import defaultdict
-
 import numpy as np
 import torch.multiprocessing as mp
 from tqdm import tqdm
@@ -12,7 +11,6 @@ from pycocotools.cocoeval import COCOeval
 
 
 class COCOevalMP(COCOeval):
-
     def _prepare(self):
         """
         Prepare ._gts and ._dts for evaluation based on params
