@@ -1,5 +1,4 @@
 # distutils: language = c
-# distutils: sources = ../common/maskApi.c
 
 #**************************************************************************
 # Microsoft COCO Toolbox.      version 2.0
@@ -40,7 +39,7 @@ cdef extern from "maskApi.h":
         uint* cnts,
     void rlesInit( RLE **R, siz n )
     void rleEncode( RLE *R, const byte *M, siz h, siz w, siz n )
-    void rleDecode( const RLE *R, byte *mask, siz n )
+    byte rleDecode( const RLE *R, byte *mask, siz n )
     void rleMerge( const RLE *R, RLE *M, siz n, int intersect )
     void rleArea( const RLE *R, siz n, uint *a )
     void rleIou( RLE *dt, RLE *gt, siz m, siz n, byte *iscrowd, double *o )
@@ -96,7 +95,7 @@ cdef class Masks:
         # Create a 1D array, and reshape it to fortran/Matlab column-major array
         ndarray = np.PyArray_SimpleNewFromData(1, shape, np.NPY_UINT8, self._mask).reshape((self._h, self._w, self._n), order='F')
         # The _mask allocated by Masks is now handled by ndarray
-        PyArray_ENABLEFLAGS(ndarray, np.NPY_OWNDATA)
+        PyArray_ENABLEFLAGS(ndarray, np.NPY_ARRAY_OWNDATA)
         return ndarray
 
 # internal conversion from Python RLEs object to compressed RLE format
@@ -146,7 +145,8 @@ def decode(rleObjs):
     cdef RLEs Rs = _frString(rleObjs)
     h, w, n = Rs._R[0].h, Rs._R[0].w, Rs._n
     masks = Masks(h, w, n)
-    rleDecode(<RLE*>Rs._R, masks._mask, n);
+    if rleDecode(<RLE*>Rs._R, masks._mask, n) != 1:
+        raise ValueError("Invalid RLE mask representation")
     return np.array(masks)
 
 def merge(rleObjs, intersect=0):
@@ -164,7 +164,7 @@ def area(rleObjs):
     shape[0] = <np.npy_intp> Rs._n
     a = np.array((Rs._n, ), dtype=np.uint8)
     a = np.PyArray_SimpleNewFromData(1, shape, np.NPY_UINT32, _a)
-    PyArray_ENABLEFLAGS(a, np.NPY_OWNDATA)
+    PyArray_ENABLEFLAGS(a, np.NPY_ARRAY_OWNDATA)
     return a
 
 # iou computation. support function overload (RLEs-RLEs and bbox-bbox).
@@ -210,11 +210,13 @@ def iou( dt, gt, pyiscrowd ):
     # convert iscrowd to numpy array
     cdef np.ndarray[np.uint8_t, ndim=1] iscrowd = np.array(pyiscrowd, dtype=np.uint8)
     # simple type checking
-    cdef siz m, n
+    cdef siz m, n, crowd_length
     dt = _preproc(dt)
     gt = _preproc(gt)
     m = _len(dt)
     n = _len(gt)
+    crowd_length = len(pyiscrowd)
+    assert crowd_length == n, "iou(iscrowd=) must have the same length as gt"
     if m == 0 or n == 0:
         return []
     if not type(dt) == type(gt):
@@ -234,7 +236,7 @@ def iou( dt, gt, pyiscrowd ):
     iou = np.zeros((m*n, ), dtype=np.double)
     shape[0] = <np.npy_intp> m*n
     iou = np.PyArray_SimpleNewFromData(1, shape, np.NPY_DOUBLE, _iou)
-    PyArray_ENABLEFLAGS(iou, np.NPY_OWNDATA)
+    PyArray_ENABLEFLAGS(iou, np.NPY_ARRAY_OWNDATA)
     _iouFun(dt, gt, iscrowd, m, n, iou)
     return iou.reshape((m,n), order='F')
 
@@ -247,7 +249,7 @@ def toBbox( rleObjs ):
     shape[0] = <np.npy_intp> 4*n
     bb = np.array((1,4*n), dtype=np.double)
     bb = np.PyArray_SimpleNewFromData(1, shape, np.NPY_DOUBLE, _bb).reshape((n, 4))
-    PyArray_ENABLEFLAGS(bb, np.NPY_OWNDATA)
+    PyArray_ENABLEFLAGS(bb, np.NPY_ARRAY_OWNDATA)
     return bb
 
 def frBbox(np.ndarray[np.double_t, ndim=2] bb, siz h, siz w ):
