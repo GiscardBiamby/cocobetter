@@ -39,8 +39,10 @@ pip install -r requirements.txt
 
 # Make the python environment available for running jupyter kernels:
 python -m ipykernel install --user --name="${ENV_NAME}"
+
 # Install jupyter extensions
-jupyter contrib nbextension install --user
+# GB 2023-12-22: This no longer works, gives error: ModuleNotFoundError: No module named 'notebook.base'
+# jupyter contrib nbextension install --user
 
 pushd ./PythonAPI || exit
 pip install -e .

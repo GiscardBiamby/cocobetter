@@ -7,6 +7,7 @@ setuptools
 tqdm
 jsons
 pysimdjson
+unittest
 
 
 
@@ -20,7 +21,9 @@ ruff
 
 # For notebooks / plotting:
 ipython
-git+https://github.com/ipython-contrib/jupyter_contrib_nbextensions.git
+# # jupyter-contrib-nbextensions No longer works with jupyter-labn
+# git+https://github.com/ipython-contrib/jupyter_contrib_nbextensions.git
+# See here instead: https://jupyterlab-contrib.github.io/migrate_from_classical.html
 jupyterlab
 matplotlib
 # nb-black
