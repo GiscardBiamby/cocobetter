@@ -1,4 +1,7 @@
-import json
+try:
+    import simdjson as json
+except:  # noqa: E722
+    import json
 from pathlib import Path
 from typing import Any, Dict
 
