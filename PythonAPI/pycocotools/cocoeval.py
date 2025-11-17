@@ -9,6 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from . import mask as maskUtils
+from .coco import COCO
 
 
 class StatKey(NamedTuple):
@@ -154,7 +155,13 @@ class COCOeval:
     # Data, paper, and tutorials available at:  http://mscoco.org/
     # Code written by Piotr Dollar and Tsung-Yi Lin, 2015.
     # Licensed under the Simplified BSD License [see coco/license.txt]
-    def __init__(self, cocoGt=None, cocoDt=None, iouType="segm", cocoParams: Params = None):
+    def __init__(
+        self,
+        cocoGt: COCO | None = None,
+        cocoDt: COCO | None = None,
+        iouType="segm",
+        cocoParams: Params | None = None,
+    ):
         """
         Initialize CocoEval using coco APIs for gt and dt.
 
@@ -202,6 +209,10 @@ class COCOeval:
                 ann["segmentation"] = rle
 
         p = self.params
+        if self.cocoGt is None:
+            "cocoGt not provided"
+        if self.cocoDt is None:
+            "cocoDt not provided"
         if p.useCats:
             gts = self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
             dts = self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
@@ -586,14 +597,14 @@ class COCOeval:
                 if iouThr is not None:
                     t = np.where(iouThr == p.iouThrs)[0]
                     s = s[t]
-                s = s[:, :, :, aind:aind+1, mind:mind+1]
+                s = s[:, :, :, aind : aind + 1, mind : mind + 1]
             else:
                 # dimension of recall: [T IoU thresholds × K categories × A area ranges × M maxDets]
                 s = self.eval["recall"]
                 if iouThr is not None:
                     t = np.where(iouThr == p.iouThrs)[0]
                     s = s[t]
-                s = s[:, :, aind:aind+1, mind:mind+1]
+                s = s[:, :, aind : aind + 1, mind : mind + 1]
 
             valid = s > -1
             if not np.any(valid):  # noqa: SIM108
@@ -607,7 +618,7 @@ class COCOeval:
                         cat_id = int(cat_id)
                     if ap == 1:  # noqa: SIM108
                         # s: [T, R, K, A', M'] -> pick cat dim
-                        s_cat = s[:, :, k, :, :] # <- line 610
+                        s_cat = s[:, :, k, :, :]  # <- line 610
                     else:
                         # s: [T, K, A', M'] -> pick cat dim
                         s_cat = s[:, k, :, :]
