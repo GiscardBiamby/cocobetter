@@ -13,8 +13,9 @@ from . import mask as maskUtils
 
 class StatKey(NamedTuple):
     """
-    Convenience class for keying into stats_dict. You can treat this exactly as a tuple if you want,
-    that's what the underlying representation is.
+    Convenience class for keying into stats_dict.
+
+    You can treat this exactly as a tuple if you want, that's what the underlying representation is.
     """
 
     metric: str
@@ -25,8 +26,9 @@ class StatKey(NamedTuple):
 
 class StatKeyPerClass(NamedTuple):
     """
-    Convenience class for keying into stats_dict_per_class. You can treat this exactly as a tuple if
-    you want, that's what the underlying representation is.
+    Convenience class for keying into stats_dict_per_class.
+
+    You can treat this exactly as a tuple if you want, that's what the underlying representation is.
     """
 
     metric: str
@@ -37,7 +39,15 @@ class StatKeyPerClass(NamedTuple):
     name: str
 
 
-def scrub_cat_name(cat_name: str) -> str:
+def scrub_cat_name(cat_name: str | None) -> str:
+    """
+    Scrub category name to be filesystem and metric friendly.
+
+    :param cat_name: _description_
+    :type cat_name: str
+    :return: _description_
+    :rtype: str
+    """
     if cat_name is None:
         cat_name = "None"
     cat_name = cat_name.lower()
@@ -47,9 +57,7 @@ def scrub_cat_name(cat_name: str) -> str:
 
 
 class Params:
-    """
-    Params for coco evaluation api
-    """
+    """Params for coco evaluation api."""
 
     def setDetParams(self):
         self.imgIds = []
@@ -148,7 +156,8 @@ class COCOeval:
     # Licensed under the Simplified BSD License [see coco/license.txt]
     def __init__(self, cocoGt=None, cocoDt=None, iouType="segm", cocoParams: Params = None):
         """
-        Initialize CocoEval using coco APIs for gt and dt
+        Initialize CocoEval using coco APIs for gt and dt.
+
         :param cocoGt: coco object with ground truth annotations
         :param cocoDt: coco object with detection results
         :return: None
@@ -173,12 +182,16 @@ class COCOeval:
         if cocoGt is not None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
+            self.cat_dict = {c["id"]: c["name"] for c in cocoGt.dataset["categories"]}
+        else:
+            self.cat_dict = {}
         self.stats_dict: dict[StatKey, float] = {}
         self.stats_dict_per_class: dict[StatKeyPerClass, float] = {}
 
     def _prepare(self):
         """
-        Prepare ._gts and ._dts for evaluation based on params
+        Prepare ._gts and ._dts for evaluation based on params.
+
         :return: None
         """
 
@@ -195,6 +208,7 @@ class COCOeval:
         else:
             gts = self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
             dts = self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds))
+        self.cat_dict = {c["id"]: c["name"] for c in self.cocoGt.dataset["categories"]}
 
         # convert ground truth to mask if iouType == 'segm'
         if p.iouType == "segm":
@@ -217,7 +231,8 @@ class COCOeval:
 
     def evaluate(self):
         """
-        Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
+        Run per image evaluation on given images and store results (a list of dict) in self.evalImgs.
+
         :return: None
         """
         tic = time.time()
@@ -337,7 +352,8 @@ class COCOeval:
 
     def evaluateImg(self, imgId, catId, aRng, maxDet):
         """
-        perform evaluation for single category and image
+        Perform evaluation for single category and image.
+
         :return: dict (single image results)
         """
         p = self.params
@@ -421,7 +437,8 @@ class COCOeval:
 
     def accumulate(self, p=None):
         """
-        Accumulate per image evaluation results and store the result in self.eval
+        Accumulate per image evaluation results and store the result in self.eval.
+
         :param p: input params for evaluation
         :return: None
         """
@@ -530,14 +547,23 @@ class COCOeval:
     def summarize(self):
         """
         Compute and display summary metrics for evaluation results.
-        Note this function can *only* be applied on the default parameter setting
+
+        Unlike the official pycocotools, this function *can* be applied on non-default parameter
+        settings
         """
 
-        def _summarize(ap=1, iouThr=None, areaRng="all", maxDets=100) -> float:
+        def _summarize(ap=1, iouThr: float | None = None, areaRng="all", maxDets=100) -> float:
             """
-            Returns `stats`, and `stats_dict`. `stats` is what the default cocoeval code returned (a
-            numpy array). `stats_dict` is a dictionary with the same values, but the dictionary keys
-            are a Tuple of (IoU, area, maxDets)
+            Returns the specified summary metric.
+
+            Also stores the result in self.stats_dict, and the
+            per-class version of the metric in self.stats_dict_per_class.
+
+            :param ap: if 1, compute AP, if 0 compute AR
+            :param iouThr: IoU threshold to use
+            :param areaRng: area range to use
+            :param maxDets: maximum number of detections to use
+            :return: mean AP or AR
             """
             p = self.params
             iStr = " {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}"
@@ -550,46 +576,53 @@ class COCOeval:
                 else "{:0.2f}".format(iouThr)
             )
             stats_dict_key = StatKey("AR" if ap == 0 else "AP", iouStr, areaRng, maxDets)
-            aind = [i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng]
-            mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets]
+            aind = [i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng][0]
+            mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets][0]
             if ap == 1:
-                # dimension of precision: [TxRxKxAxM]
+                # dimension of precision: [T IoU thresholds × R recall points × K categories × A
+                # area ranges × M maxDets]
                 s = self.eval["precision"]
                 # IoU
                 if iouThr is not None:
                     t = np.where(iouThr == p.iouThrs)[0]
                     s = s[t]
-                s = s[:, :, :, aind, mind]
+                s = s[:, :, :, aind:aind+1, mind:mind+1]
             else:
-                # dimension of recall: [TxKxAxM]
+                # dimension of recall: [T IoU thresholds × K categories × A area ranges × M maxDets]
                 s = self.eval["recall"]
                 if iouThr is not None:
                     t = np.where(iouThr == p.iouThrs)[0]
                     s = s[t]
-                s = s[:, :, aind, mind]
-            if len(s[s > -1]) == 0:
+                s = s[:, :, aind:aind+1, mind:mind+1]
+
+            valid = s > -1
+            if not np.any(valid):  # noqa: SIM108
                 mean_s = -1.0
             else:
-                mean_s = float(np.mean(s[s > -1]))
+                mean_s = float(np.mean(s[valid]))
                 # Calculate AP and AR for each category:
-                cat_dict = {c["id"]: c["name"] for c in self.cocoGt.dataset["categories"]}
-                avg = 0.0
-                for i, cat_id in enumerate(self.params.catIds):
+                for k, cat_id in enumerate(self.params.catIds):
                     # if cat_id is a np.int64, convert to python int for dict key:
                     if isinstance(cat_id, np.integer):
                         cat_id = int(cat_id)
-                    stats_dict_per_class_key = StatKeyPerClass._make(
-                        stats_dict_key + (cat_id, f"{scrub_cat_name(cat_dict[cat_id])}")
-                    )
-                    if ap == 1:
-                        class_ap = np.mean(s[:, :, i, :])
-                        avg += class_ap
-                        self.stats_dict_per_class[stats_dict_per_class_key] = class_ap
+                    if ap == 1:  # noqa: SIM108
+                        # s: [T, R, K, A', M'] -> pick cat dim
+                        s_cat = s[:, :, k, :, :] # <- line 610
                     else:
-                        class_ar = np.mean(s[:, i, :])
-                        avg += class_ar
-                        self.stats_dict_per_class[stats_dict_per_class_key] = class_ar
-                # print("avg: ", avg_ap / len(self.params.catIds))
+                        # s: [T, K, A', M'] -> pick cat dim
+                        s_cat = s[:, k, :, :]
+
+                    valid = s_cat > -1
+                    if not np.any(valid):  # noqa: SIM108
+                        class_val = -1.0
+                    else:
+                        class_val = float(np.mean(s_cat[valid]))
+
+                    stats_dict_per_class_key = StatKeyPerClass._make(
+                        stats_dict_key + (cat_id, f"{scrub_cat_name(self.cat_dict[cat_id])}")
+                    )
+                    self.stats_dict_per_class[stats_dict_per_class_key] = class_val
+
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
             self.stats_dict[stats_dict_key] = mean_s
             return mean_s
@@ -623,6 +656,7 @@ class COCOeval:
                 if area == "all":
                     continue
                 add_summary_args(0, None, area, max_dets_list[-1])
+            # Then the rest of the full grid:
             for ap in aps:
                 for max_dets in max_dets_list:
                     for iou in self.params.summaryIous:
@@ -661,4 +695,6 @@ class COCOeval:
             raise NotImplementedError(f"Unsupported iouType for summarize(): {iouType}")
 
     def __str__(self):
+        """String representation of summary stats_dict."""
         self.summarize()
+        return str(self.stats_dict)
