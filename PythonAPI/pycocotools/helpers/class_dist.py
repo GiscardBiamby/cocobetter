@@ -11,9 +11,7 @@ __all__ = ["CocoClassDistHelper", "get_ref_stats"]
 
 
 class CocoClassDistHelper(COCO):
-    """
-    A subclass of pycocotools.coco that adds a method(s) to calculate class distribution.
-    """
+    """A subclass of pycocotools.coco that adds a method(s) to calculate class distribution."""
 
     def __init__(self, annotation_file: Optional[Union[str, Path]] = None, **kwargs):
         super().__init__(annotation_file, **kwargs)
@@ -72,7 +70,7 @@ class CocoClassDistHelper(COCO):
         self.cat_img_counts = OrderedDict(sorted(self.cat_img_counts.items()))
         self.cat_ann_counts = OrderedDict(sorted(self.cat_ann_counts.items()))
 
-    def get_class_dist(self, img_ids: List[int] = None):
+    def get_class_dist(self, img_ids: list[int] | None = None):
         """
         Args:
             img_ids: List of image id's. If None, distribution is calculated for

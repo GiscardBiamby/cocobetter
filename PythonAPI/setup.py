@@ -1,7 +1,7 @@
 from pybind11 import get_cmake_dir
 
 # Available at setup time due to pyproject.toml
-from setuptools import Extension, setup
+from setuptools import Extension, setup, find_packages
 
 # Optional: only needed if you actually enable the pybind11 extension below
 from pybind11.setup_helpers import Pybind11Extension, build_ext  # noqa: F401
@@ -29,7 +29,7 @@ ext_modules = [
 
 setup(
     name="pycocotools",
-    packages=["pycocotools"],
+    packages=find_packages(include=["pycocotools", "pycocotools.*"]),
     package_dir={"pycocotools": "pycocotools"},
     install_requires=[
         "setuptools>=18.0",
