@@ -1,15 +1,17 @@
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Union
+from typing import Union
 
 from ..coco import COCO
-from .utils import load_json, save_json
+from .utils import save_json
 
 __all__ = ["reindex_coco_json"]
 
 
-def reindex_coco_json(input_file: Union[str, Path]):
+def reindex_coco_json(input_file: str| Path | None = None,):
     """
+    Reindexes the category ids in a COCO-format JSON file so that category_id=0 is used for background.
+
     If the coco categories in the input_file use cat_id=0, AND cat_id=0 is used for something other
     than "background", then this function will reindex the categories (and adjust the annotations'
     category_id references) so they start at cat_id=0 as being used for background_id, and the id's
@@ -35,11 +37,12 @@ def reindex_coco_json(input_file: Union[str, Path]):
 
 
 def adjust_cat_ids(coco):
+    """Adjust category ids in a COCO object so that category_id=0 is used for background."""
     cats = coco.dataset["categories"]
     new_cats = []
     for cat in cats:
         new_cat = {
-            "supercategory": cat["supercategory"] if "supercategory" in cat else "",
+            "supercategory": cat.get("supercategory", ""),
             "id": int(cat["id"]) + 1,
             "name": cat["name"],
         }
@@ -60,7 +63,7 @@ def coco_has_zero_as_background_id(coco: COCO):
     cats = coco.dataset["categories"]
     cat_id_zero_nonbackground_exists = False
     for cat in cats:
-        if cat["id"] == 0:
+        if cat["id"] == 0:  # noqa: SIM102
             if cat["name"] not in ["background", "__background__"]:
                 cat_id_zero_nonbackground_exists = True
                 break

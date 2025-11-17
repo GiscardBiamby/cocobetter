@@ -15,10 +15,14 @@ class COCOeval_opt(COCOeval):
 
     def evaluate(self):
         """
+        Fast version of per-image evaluation that uses C++ extensions.
+
         Run per image evaluation on given images and store results in self.evalImgs_cpp, a
         datastructure that isn't readable from Python but is used by a c++ implementation of
         accumulate().  Unlike the original COCO PythonAPI, we don't populate the datastructure
-        self.evalImgs because this datastructure is a computational bottleneck. :return: None
+        self.evalImgs because this datastructure is a computational bottleneck.
+
+        :return: None
         """
         tic = time.time()
 
