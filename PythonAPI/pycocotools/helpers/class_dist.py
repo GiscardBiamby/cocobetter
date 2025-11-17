@@ -1,7 +1,6 @@
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple, Union
-
 import numpy as np
 import pandas as pd
 
@@ -11,7 +10,10 @@ __all__ = ["CocoClassDistHelper", "get_ref_stats"]
 
 
 class CocoClassDistHelper(COCO):
-    """A subclass of pycocotools.coco that adds a method(s) to calculate class distribution."""
+    """
+    A subclass of pycocotools.coco that adds a method(s) to calculate class
+    distribution.
+    """
 
     def __init__(self, annotation_file: Optional[Union[str, Path]] = None, **kwargs):
         super().__init__(annotation_file, **kwargs)
@@ -30,9 +32,9 @@ class CocoClassDistHelper(COCO):
         """List of strings, each is an annotation id"""
 
         self.anns_list = self.loadAnns(self.ann_ids)
-        print(f"num images: {len(self.img_ids)}")
+        print(f"num images: {len(self.img_ids)}")  # noqa: T201
         # print(F"num annotation id's: {len(self.ann_ids)}")
-        print(f"num annotations: {len(self.anns)}")
+        print(f"num annotations: {len(self.anns)}")  # noqa: T201
 
         #  Create self.img_ann_counts, a dictionary keyed off of img_id. For each img_id it stores a
         #  collections.Counter object that has a count of how many annotations for each
@@ -66,12 +68,13 @@ class CocoClassDistHelper(COCO):
             }
             for c in self.cats_list
         }
-
         self.cat_img_counts = OrderedDict(sorted(self.cat_img_counts.items()))
         self.cat_ann_counts = OrderedDict(sorted(self.cat_ann_counts.items()))
 
     def get_class_dist(self, img_ids: list[int] | None = None):
         """
+        Calculates class distribution for the dataset or a subset defined by img_ids.
+
         Args:
             img_ids: List of image id's. If None, distribution is calculated for
                 all image id's in the dataset.
@@ -83,12 +86,19 @@ class CocoClassDistHelper(COCO):
         """
         cat_counter = Counter({cat["name"]: 0 for cat in self.cats_list})
         if img_ids is None:
-            img_ids = self.imgToAnns.keys()
+            img_ids = list(self.imgToAnns.keys())
 
         for img_id in img_ids:
             if img_id not in self.imgToAnns:
                 continue
             cat_counter += self.img_ann_counts[img_id]
+        # Stupid hack to fix issue where Counter drops zero counts when we did Counter + Counter
+        # above
+        for cat in self.cats_list:
+            if cat["name"] not in cat_counter:
+                cat_counter[cat["name"]] = 0
+
+        cat_counter = {k: v for k, v in sorted(cat_counter.items(), key=lambda item: item[0])}
 
         # Convert to np array where entries correspond to cat_id's sorted asc.:
         total = float(sum(cat_counter.values()))
@@ -96,27 +106,28 @@ class CocoClassDistHelper(COCO):
         cat_percents = np.zeros((self.num_cats))
         for idx, cat_name in enumerate(sorted(cat_names)):
             cat_percents[idx] = cat_counter[cat_name] / total
+        assert len(cat_counter) == len(cat_percents), f"{len(cat_counter)} == {len(cat_percents)}"
 
         return cat_counter, cat_percents
 
-    def get_cat_counts(self) -> Dict[int, Dict[str, Any]]:
+    def get_cat_counts(self) -> dict[int, dict[str, Any]]:
         """
         Returns dictionary whose keys are class_id's and values are dictionaries with category id,
-        name, and img & annotation counts
+        name, and img & annotation counts.
         """
         return self.cat_counts
 
-    def get_class_img_counts(self):
+    def get_class_img_counts(self) -> dict[int, Any]:
         """
         Returns dictionary whose keys are class_id's and values are number of images with one or
-        more instances of that class
+        more instances of that class.
         """
         return self.cat_img_counts
 
     def get_class_ann_counts(self):
         """
         Returns dictionary whose keys are class_id's and values are number of annotations available
-        for that class
+        for that class.
         """
         return self.cat_ann_counts
 
@@ -150,11 +161,7 @@ def get_ref_stats(coco: COCO, L: int = 3) -> tuple[pd.DataFrame, pd.DataFrame]:
     # print(sentence_counts, len(sentence_counts))
     df = pd.DataFrame(counts)
     # display(df)
-    print(
-        "pos/neg sentence_counts: ",
-        df.pos_sent_count.sum(),
-        df.neg_sent_count.sum(),
-    )
+    print("pos/neg sentence_counts: ", df.pos_sent_count.sum(), df.neg_sent_count.sum())  # noqa: T201
     df_agg = pd.DataFrame(
         df.groupby(lambda x: True).agg(
             num_refs=("ref_id", "count"),
