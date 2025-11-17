@@ -4,8 +4,7 @@ import copy
 import datetime
 import time
 from collections import defaultdict
-from typing import Dict, NamedTuple, Tuple, cast
-
+from typing import NamedTuple, cast
 import numpy as np
 import numpy.typing as npt
 
@@ -56,11 +55,9 @@ class Params:
         self.imgIds = []
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(
-            0.25, 0.95, int(np.round((0.95 - 0.25) / 0.05)) + 1, endpoint=True
-        )
+        self.iouThrs = np.linspace(0.5, 0.95, int(np.round((0.95 - 0.5) / 0.05)) + 1, endpoint=True)
         self.recThrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
-        self.maxDets = [1, 10, 100, 200]
+        self.maxDets = [1, 10, 100]
         self.areaRng = [
             [0**2, 1e5**2],
             [0**2, 32**2],
@@ -69,7 +66,7 @@ class Params:
         ]
         self.areaRngLbl = ["all", "small", "medium", "large"]
         self.useCats = 1
-        self.summaryIous = [0.25, 0.50, 0.75]
+        self.summaryIous = [0.50, 0.75]
 
     def setKpParams(self):
         self.imgIds = []
@@ -176,8 +173,8 @@ class COCOeval:
         if cocoGt is not None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
-        self.stats_dict: Dict[StatKey, float] = {}
-        self.stats_dict_per_class: Dict[StatKeyPerClass, float] = {}
+        self.stats_dict: dict[StatKey, float] = {}
+        self.stats_dict_per_class: dict[StatKeyPerClass, float] = {}
 
     def _prepare(self):
         """
@@ -536,7 +533,7 @@ class COCOeval:
         Note this function can *only* be applied on the default parameter setting
         """
 
-        def _summarize(ap=1, iouThr=None, areaRng="all", maxDets=100):
+        def _summarize(ap=1, iouThr=None, areaRng="all", maxDets=100) -> float:
             """
             Returns `stats`, and `stats_dict`. `stats` is what the default cocoeval code returned (a
             numpy array). `stats_dict` is a dictionary with the same values, but the dictionary keys
@@ -571,13 +568,16 @@ class COCOeval:
                     s = s[t]
                 s = s[:, :, aind, mind]
             if len(s[s > -1]) == 0:
-                mean_s = -1
+                mean_s = -1.0
             else:
-                mean_s = np.mean(s[s > -1])
+                mean_s = float(np.mean(s[s > -1]))
                 # Calculate AP and AR for each category:
                 cat_dict = {c["id"]: c["name"] for c in self.cocoGt.dataset["categories"]}
                 avg = 0.0
                 for i, cat_id in enumerate(self.params.catIds):
+                    # if cat_id is a np.int64, convert to python int for dict key:
+                    if isinstance(cat_id, np.integer):
+                        cat_id = int(cat_id)
                     stats_dict_per_class_key = StatKeyPerClass._make(
                         stats_dict_key + (cat_id, f"{scrub_cat_name(cat_dict[cat_id])}")
                     )
@@ -592,27 +592,47 @@ class COCOeval:
                 # print("avg: ", avg_ap / len(self.params.catIds))
             print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
             self.stats_dict[stats_dict_key] = mean_s
-            return cast(npt.NDArray[np.float64], mean_s)
+            return mean_s
 
         def _summarizeDets():
-            index = 0
-            aps = [0, 1]  # 0 = recall, 1 = precision
+            # Generate list of all combinations we want to summarize:
+            aps = [1, 0]  # 0 = recall (AR), 1 = precision (AP)
             max_dets_list = self.params.maxDets
-            num_stats = (
-                len(aps)
-                * len(self.params.summaryIous)
-                * len(self.params.areaRngLbl)
-                * len(max_dets_list)
-            )
-            stats = np.zeros((num_stats,))
+            summary_args = []
+            seen = set()
+
+            def add_summary_args(ap, iou, area, max_dets):
+                key = (ap, iou, area, max_dets)
+                if key not in seen:
+                    seen.add(key)
+                    summary_args.append(key)
+
+            # Make the first 12 items the same as official pycocotools .stats array:
+            # Precisions
+            add_summary_args(1, None, "all", max_dets_list[-1])
+            for iou in self.params.summaryIous:
+                add_summary_args(1, iou, "all", max_dets_list[-1])
+            for area in self.params.areaRngLbl:
+                if area == "all":
+                    continue
+                add_summary_args(1, None, area, max_dets_list[-1])
+            for max_dets in max_dets_list:
+                add_summary_args(0, None, "all", max_dets)
+            # Recalls
+            for area in self.params.areaRngLbl:
+                if area == "all":
+                    continue
+                add_summary_args(0, None, area, max_dets_list[-1])
             for ap in aps:
-                for iou in self.params.summaryIous:
-                    for area in self.params.areaRngLbl:
-                        for max_dets in max_dets_list:
-                            stats[index] = _summarize(
-                                ap, iouThr=iou, areaRng=area, maxDets=max_dets
-                            )
-                            index += 1
+                for max_dets in max_dets_list:
+                    for iou in self.params.summaryIous:
+                        for area in self.params.areaRngLbl:
+                            add_summary_args(ap, iou, area, max_dets)
+
+            # Generate summary stats:
+            stats = np.zeros((len(summary_args),))
+            for idx, args in enumerate(summary_args):
+                stats[idx] = _summarize(*args)
 
             return cast(npt.NDArray[np.float64], stats)
 
