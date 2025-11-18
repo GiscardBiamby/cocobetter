@@ -79,10 +79,14 @@ class CocoClassDistHelper(COCO):
             img_ids: List of image id's. If None, distribution is calculated for
                 all image id's in the dataset.
 
-        Returns: A dictionary representing the class distribution. Keys are category
-            names Values are counts (e.g., how many annotations are there with that category/class
-            label) np.array of class percentages. Entries are sorted by category_id (same as
-            self.cats_list)
+        Returns: Two dicts that are both sorted by cat_name.
+
+            - cat_counter (dict[str, int]): A dictionary representing the class distribution. Keys
+              are category names. Values are counts (e.g., how many annotations are there with that
+              category/class label)
+
+            - cat_percents (np.array): array of class percentages. Entries are sorted by category_id
+              (same as self.cats_list)
         """
         cat_counter = Counter({cat["name"]: 0 for cat in self.cats_list})
         if img_ids is None:

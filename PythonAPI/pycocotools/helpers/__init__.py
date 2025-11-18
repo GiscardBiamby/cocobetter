@@ -3,6 +3,7 @@ from .coco_builder import CocoJsonBuilder, COCOShrinker
 from .comsat import CocoToComsat
 from .reindex import reindex_coco_json
 from .stats import check_boxes, check_stats
+from .splits import split
 
 __all__ = [
     "check_boxes",
@@ -13,4 +14,5 @@ __all__ = [
     "CocoToComsat",
     "reindex_coco_json",
     "get_ref_stats",
+    "split",
 ]

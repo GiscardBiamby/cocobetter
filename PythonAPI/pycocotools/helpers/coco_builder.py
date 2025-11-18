@@ -1,7 +1,7 @@
 import pickle
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Counter, Optional, Union
+from typing import Any, Counter, Optional, Union, cast
 
 from ..coco import COCO, Ann, Cat, Image, Ref
 from .utils import save_json
@@ -10,21 +10,19 @@ __all__ = ["CocoJsonBuilder", "COCOShrinker"]
 
 
 class CocoJsonBuilder(object):
-    """
-    A class used to help build coco-formatted json from scratch.
-    """
+    """A class used to help build coco-formatted json from scratch."""
 
     def __init__(
         self,
-        categories: list[Cat],
-        subset_cat_ids: list[int] = [],
-        dest_path: Union[str, Path] = "",
+        categories: list[Cat] | dict[int, Cat],
+        subset_cat_ids: list[int] | None = None,
+        dest_path: str | Path = "",
         dest_name="",
         keep_empty_images=True,
         is_ref_dataset: bool = False,
-        dataset_name: str = None,
-        split_by: str = None,
-        source_coco: Optional[COCO] = None,
+        dataset_name: str | None = None,
+        split_by: str | None = None,
+        source_coco: COCO | None = None,
     ):
         """
         Args:
@@ -46,13 +44,18 @@ class CocoJsonBuilder(object):
         if dest_path:
             if isinstance(dest_path, str):
                 dest_path = Path(dest_path)
-            assert dest_path.is_dir(), "dest_path should be a directory: " + str(
-                dest_path
-            )
-        self.categories = categories
-        self.subset_cat_ids = subset_cat_ids
+            assert dest_path.is_dir(), "dest_path should be a directory: " + str(dest_path)
+
+        # Sometimes we get a dict with key=cat_id and value is the category dict. We want to save it
+        # as a list of just the dicts
+        if categories and isinstance(categories, dict):
+            self.categories = sorted([v for k, v in categories.items()], key=lambda x: x["id"])
+        elif isinstance(categories, list) and isinstance(categories[0], dict):
+            self.categories = cast(list, categories)
+        self.subset_cat_ids: list[int] = subset_cat_ids if subset_cat_ids else list()
         self.new_categories = []
         self.reindex_cat_id = {}  # maps from old to new cat id
+
         if self.subset_cat_ids:
             cat_counter = 1  # one-indexing
             for cat in self.categories:
@@ -62,6 +65,7 @@ class CocoJsonBuilder(object):
                     self.reindex_cat_id[cat["id"]] = cat_counter
                     cat_counter += 1
                     self.new_categories.append(new_cat)
+
         self.keep_empty_images = keep_empty_images
         self.dest_path = Path(dest_path)
         self.dest_name = dest_name
@@ -81,9 +85,7 @@ class CocoJsonBuilder(object):
         # ), f"dest_path: '{self.dest_path}' is not a directory"
 
     def generate_info(self) -> dict[str, str]:
-        """
-        Returns: A dictionary of descriptive info about the dataset.
-        """
+        """Returns: A dictionary of descriptive info about the dataset."""
         info_json = (
             {
                 "description": "Some Dataset",
@@ -112,9 +114,7 @@ class CocoJsonBuilder(object):
             else self.source_coco.dataset["licenses"]
         )
 
-    def add_image(
-        self, img: Image, annotations: list[Ann], refs: Optional[list[Ref]] = []
-    ) -> None:
+    def add_image(self, img: Image, annotations: list[Ann], refs: Optional[list[Ref]] = []) -> None:
         """
         Add an image and it's annotations to the coco json.
 
@@ -133,31 +133,25 @@ class CocoJsonBuilder(object):
         Returns: None
         """
         img = deepcopy(img)
-        if self.keep_empty_images and not (annotations):
-            self.images.append(img)
-            for ann in annotations:
-                self._add_ann(ann)
-        elif annotations:
+        if (self.keep_empty_images and not (annotations)) or annotations:
             self.images.append(img)
             for ann in annotations:
                 self._add_ann(ann)
         if refs is not None and len(refs) > 0:
             for ref in refs:
                 if "image_id" in ref:
-                    assert (
-                        ref["image_id"] == img["id"]
-                    ), f"ref[img_id]:{ref['image_id']}!=img_id:{img['id']}"
+                    assert ref["image_id"] == img["id"], (
+                        f"ref[img_id]:{ref['image_id']}!=img_id:{img['id']}"
+                    )
                 else:
                     ref["image_id"] = img["id"]
-                assert (
-                    "ann_id" in ref
-                ), f"ref is missing ann_id. Ref: {ref}, img_id:{img['id']}"
-                assert (
-                    "sentences" in ref
-                ), f"ref is missing 'sentences'. Ref: {ref}, img_id:{img['id']}"
-                assert (
-                    len(ref["sentences"]) > 0
-                ), f"ref has no sentences. Ref: {ref}, img_id:{img['id']}"
+                assert "ann_id" in ref, f"ref is missing ann_id. Ref: {ref}, img_id:{img['id']}"
+                assert "sentences" in ref, (
+                    f"ref is missing 'sentences'. Ref: {ref}, img_id:{img['id']}"
+                )
+                assert len(ref["sentences"]) > 0, (
+                    f"ref has no sentences. Ref: {ref}, img_id:{img['id']}"
+                )
                 self._add_ref(ref)
 
     def _add_ann(self, ann: Ann) -> None:
@@ -183,7 +177,7 @@ class CocoJsonBuilder(object):
         self.refs.append(new_ref)
 
     def _reindex(self) -> None:
-        "Set ann_id's and ref_id's"
+        """Set ann_id's and ref_id's"""
 
         def assert_unique_ids(items: list[Any], id_key: str):
             id_counts = Counter([item[id_key] for item in items])
@@ -203,9 +197,9 @@ class CocoJsonBuilder(object):
                 ann["id"] = max_ann_id
 
         # Ensure existing ref_id's are unique:
-        max_ref_id = assert_unique_ids(self.refs, "ref_id")
         # Assign ref_ids
         if self.is_ref_dataset:
+            max_ref_id = assert_unique_ids(self.refs, "ref_id")
             assert len(self.refs) > 0, "self.refs is None or empty"
             for ref in self.refs:
                 if ref["ref_id"] < 0:
@@ -222,9 +216,10 @@ class CocoJsonBuilder(object):
         """Returns the full json for this instance of coco json builder."""
         root_json = {}
         if self.new_categories:
-            root_json["categories"] = self.new_categories
+            categories = self.new_categories
         else:
-            root_json["categories"] = self.categories
+            categories = self.categories
+        root_json["categories"] = categories
         root_json["info"] = self.generate_info()
         root_json["licenses"] = self.generate_licenses()
         root_json["images"] = self.images
@@ -247,8 +242,8 @@ class CocoJsonBuilder(object):
         file_path = (self.dest_path / self.dest_name).absolute()
         dataset = self.get_json()
         print(
-            f"Writing coco_builder (num_img: { len(dataset['images']) }, "
-            f"num_ann: { len(dataset['annotations']) }) output to: '{file_path}'"
+            f"Writing coco_builder (num_img: {len(dataset['images'])}, "
+            f"num_ann: {len(dataset['annotations'])}) output to: '{file_path}'"
         )
         save_json(file_path, data=dataset)
         file_size_MB = file_path.stat().st_size / (1024 * 1024)
@@ -260,9 +255,7 @@ class CocoJsonBuilder(object):
 
 
 class COCOShrinker:
-    """
-    Shrinker takes an MS COCO formatted dataset and creates a tiny version of it.
-    """
+    """Shrinker takes an MS COCO formatted dataset and creates a tiny version of it."""
 
     def __init__(self, dataset_path: Path, keep_empty_images=False, **kwargs) -> None:
         """
@@ -287,7 +280,7 @@ class COCOShrinker:
         self,
         target_filename: str,
         size: int = 512,
-        output_dir: Path = None,
+        output_dir: Path | None = None,
         **kwargs,
     ) -> Path:
         """
@@ -308,9 +301,7 @@ class COCOShrinker:
         else:
             dest_path: Path = self.base_path / target_filename
         dest_path.parent.mkdir(parents=True, exist_ok=True)
-        print(
-            f"Creating subset of {self.dataset_path}, of size: {size}, at: {dest_path}"
-        )
+        print(f"Creating subset of {self.dataset_path}, of size: {size}, at: {dest_path}")
         coco = COCO(self.dataset_path, **self.kwargs)
         print("Loaded coco source ", len(coco.imgs), len(coco.anns), len(coco.refs))
         print(coco.is_ref_dataset, coco.dataset_name, coco.split_by)

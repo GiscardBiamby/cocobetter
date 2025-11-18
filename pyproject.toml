@@ -84,7 +84,12 @@ extend-select = [
 # Keep the same flake8 intent where Ruff supports it.
 # NOTE: Removed unsupported plugin codes: X100 (not in Ruff), DAR* (darglint), WPS* (wemake).
 # RST*, D* are recognized by Ruff; they’re ignored here to mirror your flake8 ignores.
-ignore = [ "E203", "E221", "C901", "C408", "E741", "D100", "D104", "D106", "D401"]
+ignore = [
+    "E203", "E221", "C901", "C408", "E741", "D100", "D104", "D106", "D401", "D205",
+    "D400", # Rule: first line of a docstring should end with a period.
+    "SIM108", # Rule: it tries to simplify some if statements into ternary operator expressions
+    "TC006", # Rule: it wants you to make the type argument of typing.cast(...) a string.
+]
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
