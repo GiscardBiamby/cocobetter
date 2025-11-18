@@ -20,11 +20,12 @@ ext_modules = [
         include_dirs=get_numpy_includes(),
         extra_compile_args=["-Wno-cpp", "-Wno-unused-function", "-std=c99"],
     ),
-    # Pybind11Extension(
-    #     "pycocotools._eval",
-    #     sources=["../fastcocoeval/cocoeval.cpp"],
-    #     include_dirs=get_numpy_includes(),
-    # )
+    Pybind11Extension(
+        "pycocotools._fasteval",
+        sources=["../fastcocoeval/cocoeval.cpp"],
+        include_dirs=get_numpy_includes(),
+        extra_compile_args=["-std=c++17"],
+    )
 ]
 
 setup(
@@ -32,10 +33,11 @@ setup(
     packages=find_packages(include=["pycocotools", "pycocotools.*"]),
     package_dir={"pycocotools": "pycocotools"},
     install_requires=[
-        "setuptools>=18.0",
+        "setuptools>=42",
         "cython>=0.27.3",
         "matplotlib>=2.1.0",
     ],
-    version="2.0.2",
+    version="2.0.10",
     ext_modules=ext_modules,
+    cmdclass={"build_ext": build_ext},
 )

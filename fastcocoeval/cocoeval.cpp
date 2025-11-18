@@ -547,3 +547,20 @@ namespace pycocotools
     } // namespace COCOeval
 
 } // namespace pycocotools
+
+PYBIND11_MODULE(_fasteval, m) {
+    m.doc() = "Pybind11 bindings for fast COCO evaluation";
+
+    py::class_<pycocotools::COCOeval::InstanceAnnotation>(m, "InstanceAnnotation")
+        .def(py::init<uint64_t, double, double, bool, bool>());
+
+    py::class_<pycocotools::COCOeval::ImageEvaluation>(m, "ImageEvaluation")
+        .def(py::init<>())
+        .def_readwrite("detection_matches", &pycocotools::COCOeval::ImageEvaluation::detection_matches)
+        .def_readwrite("detection_scores", &pycocotools::COCOeval::ImageEvaluation::detection_scores)
+        .def_readwrite("ground_truth_ignores", &pycocotools::COCOeval::ImageEvaluation::ground_truth_ignores)
+        .def_readwrite("detection_ignores", &pycocotools::COCOeval::ImageEvaluation::detection_ignores);
+
+    m.def("COCOevalEvaluateImages", &pycocotools::COCOeval::EvaluateImages, "C++ version of COCOeval.evaluateImgs()");
+    m.def("COCOevalAccumulate", &pycocotools::COCOeval::Accumulate, "C++ version of COCOeval.accumulate()");
+}

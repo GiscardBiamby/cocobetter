@@ -613,6 +613,7 @@ class COCO:
             anns = self.loadNumpyAnnotations(resFile)
         else:
             anns = resFile
+        print(f"Loaded {len(anns) if anns else 0} results")
         assert type(anns) == list, "results in not an array of objects"
         annsImgIds = [ann["image_id"] for ann in anns]
         assert set(annsImgIds) == (set(annsImgIds) & set(self.getImgIds())), (

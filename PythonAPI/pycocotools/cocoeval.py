@@ -239,6 +239,9 @@ class COCOeval:
             self._dts[dt["image_id"], dt["category_id"]].append(dt)
         self.evalImgs = defaultdict(list)  # per-image per-category evaluation results
         self.eval = {}  # accumulated evaluation results
+        print(
+            f"Prepared for eval on images:{len(p.imgIds)}, cats: {len(p.catIds)}, gts: {len(gts)}, dts: {len(dts)}"
+        )
 
     def evaluate(self):
         """
@@ -247,13 +250,13 @@ class COCOeval:
         :return: None
         """
         tic = time.time()
-        print("Running per image evaluation...")
+        print("Running per image evaluation...")  # noqa: T201
         p = self.params
         # add backward compatibility if useSegm is specified in params
         if p.useSegm is not None:
             p.iouType = "segm" if p.useSegm == 1 else "bbox"
-            print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))
-        print("Evaluate annotation type *{}*".format(p.iouType))
+            print(f"useSegm (deprecated) is not None. Running {p.iouType} evaluation")  # noqa: T201
+        print(f"Evaluate annotation type *{p.iouType}*")  # noqa: T201
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
             p.catIds = list(np.unique(p.catIds))
@@ -269,7 +272,9 @@ class COCOeval:
         elif p.iouType == "keypoints":
             computeIoU = self.computeOks
         self.ious = {
-            (imgId, catId): computeIoU(imgId, catId) for imgId in p.imgIds for catId in catIds
+            (imgId, catId): computeIoU(imgId, catId) # pyright: ignore[reportPossiblyUnboundVariable]
+            for imgId in p.imgIds
+            for catId in catIds  # pyright: ignore[reportPossiblyUnboundVariable]
         }
 
         evaluateImg = self.evaluateImg
@@ -282,7 +287,7 @@ class COCOeval:
         ]
         self._paramsEval = copy.deepcopy(self.params)
         toc = time.time()
-        print("DONE (t={:0.2f}s).".format(toc - tic))
+        print(f"DONE (t={toc - tic:0.2f}s).", f" num image evals: {len(self.evalImgs)}")  # noqa: T201
 
     def computeIoU(self, imgId, catId):
         p = self.params
@@ -453,10 +458,10 @@ class COCOeval:
         :param p: input params for evaluation
         :return: None
         """
-        print("Accumulating evaluation results...")
+        print("Accumulating evaluation results...")  # noqa: T201
         tic = time.time()
         if not self.evalImgs:
-            print("Please run evaluate() first")
+            print("Please run evaluate() first")  # noqa: T201
         # allows input customized parameters
         if p is None:
             p = self.params
@@ -553,7 +558,7 @@ class COCOeval:
             "scores": scores,
         }
         toc = time.time()
-        print("DONE (t={:0.2f}s).".format(toc - tic))
+        print("DONE (t={:0.2f}s).".format(toc - tic))  # noqa: T201
 
     def summarize(self):
         """

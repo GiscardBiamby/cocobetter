@@ -1,17 +1,18 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import copy
-import numpy as np
 import time
+import numpy as np
+
 from pycocotools.cocoeval import COCOeval
 
-from detectron2 import _C
+from . import _fasteval as _C
 
 
-class COCOeval_opt(COCOeval):
+class COCOevalFast(COCOeval):
     """
     This is a slightly modified version of the original COCO API, where the functions evaluateImg()
     and accumulate() are implemented in C++ to speedup evaluation
-    """
+    """  # noqa: D404
 
     def evaluate(self):
         """
@@ -26,13 +27,13 @@ class COCOeval_opt(COCOeval):
         """
         tic = time.time()
 
-        print("Running per image evaluation...")
+        print("Running per image evaluation...")  # noqa: T201
         p = self.params
         # add backward compatibility if useSegm is specified in params
         if p.useSegm is not None:
             p.iouType = "segm" if p.useSegm == 1 else "bbox"
-            print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))
-        print("Evaluate annotation type *{}*".format(p.iouType))
+            print("useSegm (deprecated) is not None. Running {} evaluation".format(p.iouType))  # noqa: T201
+        print("Evaluate annotation type *{}*".format(p.iouType))  # noqa: T201
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
             p.catIds = list(np.unique(p.catIds))
@@ -49,7 +50,9 @@ class COCOeval_opt(COCOeval):
         elif p.iouType == "keypoints":
             computeIoU = self.computeOks
         self.ious = {
-            (imgId, catId): computeIoU(imgId, catId) for imgId in p.imgIds for catId in catIds
+            (imgId, catId): computeIoU(imgId, catId)
+            for imgId in p.imgIds
+            for catId in catIds  # pyright: ignore[reportPossiblyUnboundVariable]
         }
 
         maxDet = p.maxDets[-1]
@@ -94,18 +97,20 @@ class COCOeval_opt(COCOeval):
 
         self._paramsEval = copy.deepcopy(self.params)
         toc = time.time()
-        print("COCOeval_opt.evaluate() finished in {:0.2f} seconds.".format(toc - tic))
+        print(
+            f"COCOevalFast.evaluate() finished in {toc - tic:0.2f} seconds,  num image evals: {len(self._evalImgs_cpp)}."
+        )  # noqa: T201
         # >>>> End of code differences with original COCO API
 
-    def accumulate(self):
+    def accumulate(self, p=None):
         """
         Accumulate per image evaluation results and store the result in self.eval.  Does not support
         changing parameter settings from those used by self.evaluate()
         """
-        print("Accumulating evaluation results...")
+        print("Accumulating evaluation results...")  # noqa: T201
         tic = time.time()
         if not hasattr(self, "_evalImgs_cpp"):
-            print("Please run evaluate() first")
+            print("Please run evaluate() first")  # noqa: T201
 
         self.eval = _C.COCOevalAccumulate(self._paramsEval, self._evalImgs_cpp)
 
@@ -119,4 +124,4 @@ class COCOeval_opt(COCOeval):
         self.eval["precision"] = np.array(self.eval["precision"]).reshape(self.eval["counts"])
         self.eval["scores"] = np.array(self.eval["scores"]).reshape(self.eval["counts"])
         toc = time.time()
-        print("COCOeval_opt.accumulate() finished in {:0.2f} seconds.".format(toc - tic))
+        print(f"COCOevalFast.accumulate() finished in {toc - tic:0.2f} seconds.")  # noqa: T201
