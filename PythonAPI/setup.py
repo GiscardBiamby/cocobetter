@@ -1,9 +1,5 @@
-from pybind11 import get_cmake_dir
-
 # Available at setup time due to pyproject.toml
-from setuptools import Extension, setup, find_packages
-
-# Optional: only needed if you actually enable the pybind11 extension below
+from setuptools import Extension, find_packages, setup
 from pybind11.setup_helpers import Pybind11Extension, build_ext  # noqa: F401
 
 
@@ -24,8 +20,9 @@ ext_modules = [
         "pycocotools._fasteval",
         sources=["../fastcocoeval/cocoeval.cpp"],
         include_dirs=get_numpy_includes(),
-        extra_compile_args=["-std=c++17"],
-    )
+        # extra_compile_args=["-std=c++17"],
+        extra_compile_args=["-std=c++17", "-O3", "-march=native"],
+    ),
 ]
 
 setup(
