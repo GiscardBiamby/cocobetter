@@ -87,14 +87,7 @@ class CocoJsonBuilder(object):
     def generate_info(self) -> dict[str, str]:
         """Returns: A dictionary of descriptive info about the dataset."""
         info_json = (
-            {
-                "description": "Some Dataset",
-                "url": "http://somedataset.org/",
-                "version": "1.0",
-                "year": 2013,
-                "contributor": "[Contributor]",
-                "date_created": "2023/01/01",
-            }
+            self.generate_info_default()
             if not self.source_coco
             else self.source_coco.dataset["info"]
         )
@@ -114,7 +107,31 @@ class CocoJsonBuilder(object):
             else self.source_coco.dataset["licenses"]
         )
 
-    def add_image(self, img: Image, annotations: list[Ann], refs: Optional[list[Ref]] = []) -> None:
+    @staticmethod
+    def generate_info_default() -> dict[str, str]:
+        """returns: A generic dictionary of descriptive info about the dataset."""
+        info_json = {
+            "description": "Some Dataset",
+            "url": "http://somedataset.org/",
+            "version": "1.0",
+            "year": 2025,
+            "contributor": "[Contributor]",
+            "date_created": "2025/01/01",
+        }
+        return info_json
+
+    @staticmethod
+    def generate_licenses_default() -> list[dict[str, Any]]:
+        """Returns a generic json hash for the licensing info."""
+        return [
+            {
+                "url": "http://creativecommons.org/licenses/by-nc-sa/4.0/",
+                "id": 1,
+                "name": "Attribution-NonCommercial-ShareAlike License",
+            }
+        ]
+
+    def add_image(self, img: Image, annotations: list[Ann], refs: list[Ref] | None = []) -> None:
         """
         Add an image and it's annotations to the coco json.
 
